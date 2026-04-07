@@ -1,0 +1,219 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── DARK MODE (default) ─────────────────────────────── */
+@layer base {
+  :root {
+    --background: 216 18% 7%;
+    --foreground: 213 27% 90%;
+
+    --card: 216 17% 11%;
+    --card-foreground: 213 27% 90%;
+
+    --popover: 216 17% 11%;
+    --popover-foreground: 213 27% 90%;
+
+    --primary: 213 94% 60%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 216 17% 14%;
+    --secondary-foreground: 213 27% 90%;
+
+    --muted: 216 17% 14%;
+    --muted-foreground: 215 14% 55%;
+
+    --accent: 216 17% 16%;
+    --accent-foreground: 213 27% 90%;
+
+    --destructive: 4 90% 63%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 216 13% 16%;
+    --input: 216 13% 16%;
+    --ring: 213 94% 60%;
+
+    --radius: 0.375rem;
+
+    --sidebar-background: 216 17% 11%;
+    --sidebar-foreground: 213 27% 90%;
+    --sidebar-primary: 213 94% 60%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 216 17% 14%;
+    --sidebar-accent-foreground: 213 27% 90%;
+    --sidebar-border: 216 13% 16%;
+    --sidebar-ring: 213 94% 60%;
+
+    /* TenderSpot dark tokens */
+    --ts-bg: #0F1117;
+    --ts-surface: #161B22;
+    --ts-border: #21262D;
+    --ts-text-primary: #E6EDF3;
+    --ts-text-secondary: #8B949E;
+    --ts-text-muted: #6E7681;
+    --ts-accent: #388BFD;
+    --ts-status-new: #388BFD;
+    --ts-status-wip: #D29922;
+    --ts-status-submitted: #2EA043;
+    --ts-status-rejected: #6E7681;
+    --ts-urgent: #F85149;
+    --ts-price-high: #2EA043;
+    --ts-row-hover: #21262D;
+  }
+
+  /* ─── LIGHT MODE ─────────────────────────────────────── */
+  :root:not(.dark) {
+    --background: 210 40% 98%;
+    --foreground: 222 47% 11%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    --primary: 213 94% 50%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222 47% 11%;
+
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+
+    --accent: 210 40% 94%;
+    --accent-foreground: 222 47% 11%;
+
+    --destructive: 4 90% 58%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 214 32% 88%;
+    --input: 214 32% 88%;
+    --ring: 213 94% 50%;
+
+    /* TenderSpot light tokens */
+    --ts-bg: #F8FAFC;
+    --ts-surface: #FFFFFF;
+    --ts-border: #E2E8F0;
+    --ts-text-primary: #0F172A;
+    --ts-text-secondary: #475569;
+    --ts-text-muted: #94A3B8;
+    --ts-accent: #1D6FD8;
+    --ts-status-new: #1D6FD8;
+    --ts-status-wip: #B45309;
+    --ts-status-submitted: #166534;
+    --ts-status-rejected: #64748B;
+    --ts-urgent: #DC2626;
+    --ts-price-high: #166534;
+    --ts-row-hover: #F1F5F9;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    background-color: var(--ts-bg);
+    color: var(--ts-text-primary);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    transition: background-color 150ms ease, color 150ms ease;
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--ts-border) transparent;
+  }
+
+  *::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background-color: var(--ts-border);
+    border-radius: 3px;
+  }
+}
+
+@layer utilities {
+  .ts-bg { background-color: var(--ts-bg); }
+  .ts-surface { background-color: var(--ts-surface); }
+  .ts-border { border-color: var(--ts-border); }
+  .ts-text { color: var(--ts-text-primary); }
+  .ts-text-muted { color: var(--ts-text-secondary); }
+  .ts-accent { color: var(--ts-accent); }
+  .ts-accent-bg { background-color: var(--ts-accent); }
+
+  .status-new { color: var(--ts-status-new); }
+  .status-wip { color: var(--ts-status-wip); }
+  .status-submitted { color: var(--ts-status-submitted); }
+  .status-rejected { color: var(--ts-status-rejected); }
+
+  .price-high { color: var(--ts-price-high); }
+  .urgent { color: var(--ts-urgent); }
+
+  .row-rejected { opacity: 0.45; }
+  .row-urgent { border-left: 2px solid var(--ts-urgent) !important; }
+
+  .table-header-cell {
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ts-text-secondary);
+    font-weight: 500;
+  }
+
+  .mono {
+    font-family: 'JetBrains Mono', 'Courier New', monospace;
+  }
+
+  .btn-outline {
+    border: 1px solid var(--ts-border);
+    background: transparent;
+    color: var(--ts-text-primary);
+    transition: background 150ms ease, border-color 150ms ease;
+    cursor: pointer;
+  }
+
+  .btn-outline:hover {
+    background-color: var(--ts-row-hover);
+  }
+
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .pill-new { background: rgba(56, 139, 253, 0.15); color: var(--ts-status-new); }
+  .pill-wip { background: rgba(210, 153, 34, 0.15); color: var(--ts-status-wip); }
+  .pill-submitted { background: rgba(46, 160, 67, 0.15); color: var(--ts-status-submitted); }
+  .pill-rejected { background: rgba(110, 118, 129, 0.15); color: var(--ts-status-rejected); }
+
+  .source-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 500;
+    border: 1px solid var(--ts-border);
+    color: var(--ts-text-secondary);
+    white-space: nowrap;
+  }
+}
