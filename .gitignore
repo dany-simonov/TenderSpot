@@ -7,18 +7,69 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Dependencies
 node_modules
+**/node_modules
+
+# Build outputs
 dist
 dist-ssr
+build
+coverage
+.vite
+.cache
+.turbo
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Runtime artifacts
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Package manager stores
+.pnpm-store
+.npm
+.yarn
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+
+# TypeScript
+*.tsbuildinfo
+
+# Test artifacts
+playwright-report
+test-results
+
+# Temporary files
+tmp
+temp
+*.tmp
 *.local
+
+# Parser service local artifacts
+services/parser/.env
+services/parser/.env.*
+services/parser/.cache
+services/parser/dist
 
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
 .idea
-.DS_Store
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini

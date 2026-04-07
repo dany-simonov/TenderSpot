@@ -8,7 +8,10 @@
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "parser:install": "npm --prefix services/parser install",
+    "parser:run": "npm --prefix services/parser run run",
+    "parser:schedule": "npm --prefix services/parser run schedule"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
@@ -49,6 +52,7 @@
     "@supabase/supabase-js": "^2.51.0",
     "@tanstack/react-query": "^5.56.2",
     "@tanstack/react-query-devtools": "^5.90.2",
+    "appwrite": "^24.1.1",
     "axios": "^1.12.2",
     "chart.js": "^4.5.0",
     "class-variance-authority": "^0.7.1",

@@ -2,6 +2,7 @@ export type TenderStatus = 'new' | 'wip' | 'submitted' | 'rejected';
 export type TenderSource = 'ЕИС 44-ФЗ' | 'ЕИС 223-ФЗ' | 'ROOF.ru' | 'КомТендер';
 
 export interface Tender {
+  documentId?: string;
   id: string;
   title: string;
   customer: string;

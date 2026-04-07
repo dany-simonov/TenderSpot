@@ -162,7 +162,9 @@ const TenderRow = ({ tender, index, onRowClick, onStatusChange }: TenderRowProps
           style={{
             borderColor: SOURCE_COLORS[tender.source] || 'var(--ts-border)',
             color: SOURCE_COLORS[tender.source] || 'var(--ts-text-secondary)',
-            backgroundColor: `${SOURCE_COLORS[tender.source]}18` || 'transparent',
+            backgroundColor: SOURCE_COLORS[tender.source]
+              ? `${SOURCE_COLORS[tender.source]}18`
+              : 'transparent',
           }}
         >
           {tender.source}

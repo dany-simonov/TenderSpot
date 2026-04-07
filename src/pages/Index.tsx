@@ -1,61 +1,82 @@
-import { useState, useMemo, useCallback } from 'react';
-import { MOCK_TENDERS } from '@/data/mockTenders';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { Tender, TenderStatus, SortField, SortState } from '@/types/tender';
-import { useLocalStorage, useLastSync } from '@/hooks/useLocalStorage';
+import {
+  useRealtimeTendersSync,
+  useTendersQuery,
+  useUpdateTenderNotesMutation,
+  useUpdateTenderStatusMutation,
+} from '@/hooks/useTenders';
 import { useTheme } from '@/hooks/useTheme';
+import { useAuth } from '@/auth/AuthContext';
 import Header from '@/components/layout/Header';
 import FilterBar from '@/components/features/FilterBar';
 import TenderTable from '@/components/features/TenderTable';
 import TenderDrawer from '@/components/features/TenderDrawer';
 
 const Index = () => {
-  // ── Theme ─────────────────────────────────────────────────────
   const [theme, toggleTheme] = useTheme();
+  const { logout } = useAuth();
 
-  // ── Persistence ──────────────────────────────────────────────
-  const [savedStatuses, setSavedStatuses] = useLocalStorage<Record<string, TenderStatus>>(
-    'tenderspot_statuses',
-    {}
-  );
-  const [savedNotes, setSavedNotes] = useLocalStorage<Record<string, string>>(
-    'tenderspot_notes',
-    {}
-  );
-  const [lastSync, refresh] = useLastSync();
+  const {
+    data: tenders = [],
+    isLoading,
+    isError,
+    error,
+    refetch,
+    dataUpdatedAt,
+  } = useTendersQuery();
+  const updateStatusMutation = useUpdateTenderStatusMutation();
+  const updateNotesMutation = useUpdateTenderNotesMutation();
 
-  // ── Merge mock data with persisted statuses/notes ─────────────
-  const tenders: Tender[] = useMemo(
-    () =>
-      MOCK_TENDERS.map((t) => ({
-        ...t,
-        status: savedStatuses[t.id] ?? t.status,
-        notes: savedNotes[t.id] ?? t.notes,
-      })),
-    [savedStatuses, savedNotes]
-  );
+  useRealtimeTendersSync();
 
-  // ── UI state ──────────────────────────────────────────────────
+  const [lastSync, setLastSync] = useState(new Date().toISOString());
+
+  useEffect(() => {
+    if (dataUpdatedAt > 0) {
+      setLastSync(new Date(dataUpdatedAt).toISOString());
+    }
+  }, [dataUpdatedAt]);
+
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<TenderStatus | 'all'>('all');
   const [sourceFilter, setSourceFilter] = useState<string>('all');
   const [sort, setSort] = useState<SortState>({ field: 'deadline', dir: 'asc' });
-  const [selectedTender, setSelectedTender] = useState<Tender | null>(null);
+  const [selectedTenderId, setSelectedTenderId] = useState<string | null>(null);
 
-  // ── Handlers ──────────────────────────────────────────────────
+  const selectedTender = useMemo(
+    () => (selectedTenderId ? tenders.find((item) => item.id === selectedTenderId) ?? null : null),
+    [selectedTenderId, tenders]
+  );
+
   const handleStatusChange = useCallback(
     (id: string, status: TenderStatus) => {
-      setSavedStatuses((prev) => ({ ...prev, [id]: status }));
-      setSelectedTender((prev) => (prev?.id === id ? { ...prev, status } : prev));
+      const tender = tenders.find((item) => item.id === id);
+      if (!tender?.documentId) {
+        return;
+      }
+
+      updateStatusMutation.mutate({
+        documentId: tender.documentId,
+        status,
+      });
     },
-    [setSavedStatuses]
+    [tenders, updateStatusMutation]
   );
 
   const handleNotesChange = useCallback(
     (id: string, notes: string) => {
-      setSavedNotes((prev) => ({ ...prev, [id]: notes }));
-      setSelectedTender((prev) => (prev?.id === id ? { ...prev, notes } : prev));
+      const tender = tenders.find((item) => item.id === id);
+      if (!tender?.documentId) {
+        return;
+      }
+
+      updateNotesMutation.mutate({
+        documentId: tender.documentId,
+        notes,
+      });
     },
-    [setSavedNotes]
+    [tenders, updateNotesMutation]
   );
 
   const handleSort = useCallback(
@@ -70,14 +91,13 @@ const Index = () => {
   );
 
   const handleRowClick = useCallback((tender: Tender) => {
-    setSelectedTender(tender);
+    setSelectedTenderId(tender.id);
   }, []);
 
   const handleDrawerClose = useCallback(() => {
-    setSelectedTender(null);
+    setSelectedTenderId(null);
   }, []);
 
-  // ── Filtering & sorting ───────────────────────────────────────
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return tenders.filter((t) => {
@@ -101,7 +121,6 @@ const Index = () => {
     });
   }, [filtered, sort]);
 
-  // ── Status counts ─────────────────────────────────────────────
   const counts = useMemo(() => {
     const base =
       statusFilter === 'all'
@@ -122,15 +141,34 @@ const Index = () => {
     };
   }, [tenders, filtered, statusFilter, sourceFilter, search]);
 
-  // ── Render ─────────────────────────────────────────────────────
+  const handleRefresh = useCallback(async () => {
+    await refetch();
+    setLastSync(new Date().toISOString());
+  }, [refetch]);
+
+  const handleLogout = useCallback(async () => {
+    await logout();
+  }, [logout]);
+
   return (
     <div className="min-h-screen transition-colors" style={{ backgroundColor: 'var(--ts-bg)' }}>
       <Header
         lastSync={lastSync}
-        onRefresh={refresh}
+        onRefresh={handleRefresh}
         theme={theme}
         onToggleTheme={toggleTheme}
       />
+
+      <div className="px-4 sm:px-6 py-2 flex justify-end">
+        <button
+          onClick={handleLogout}
+          className="text-xs px-3 py-1.5 rounded btn-outline"
+          style={{ borderRadius: '4px' }}
+        >
+          Выйти
+        </button>
+      </div>
+
       <FilterBar
         search={search}
         onSearchChange={setSearch}
@@ -144,13 +182,23 @@ const Index = () => {
       {/* Table container */}
       <main>
         <div style={{ borderBottom: '1px solid var(--ts-border)' }}>
-          <TenderTable
-            tenders={sorted}
-            sort={sort}
-            onSort={handleSort}
-            onRowClick={handleRowClick}
-            onStatusChange={handleStatusChange}
-          />
+          {isLoading ? (
+            <div className="py-16 text-center text-sm" style={{ color: 'var(--ts-text-secondary)' }}>
+              Загружаем тендеры из Appwrite...
+            </div>
+          ) : isError ? (
+            <div className="py-16 text-center text-sm" style={{ color: '#ef4444' }}>
+              {(error as Error)?.message || 'Не удалось загрузить тендеры.'}
+            </div>
+          ) : (
+            <TenderTable
+              tenders={sorted}
+              sort={sort}
+              onSort={handleSort}
+              onRowClick={handleRowClick}
+              onStatusChange={handleStatusChange}
+            />
+          )}
         </div>
 
         {/* Footer row */}

@@ -1,5 +1,6 @@
 import { RefreshCw, Sun, Moon } from 'lucide-react';
 import { Theme } from '@/hooks/useTheme';
+import BlueRhombusLogo from '@/components/branding/BlueRhombusLogo';
 
 interface HeaderProps {
   lastSync: string;
@@ -34,31 +35,7 @@ const Header = ({ lastSync, onRefresh, theme, onToggleTheme }: HeaderProps) => {
         borderBottom: '1px solid var(--ts-border)',
       }}
     >
-      {/* Logo */}
-      <div className="flex items-center gap-2">
-        <svg
-          width="20"
-          height="20"
-          viewBox="0 0 20 20"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-          aria-hidden="true"
-        >
-          <path
-            d="M10 2L2 8H4V17H9V12H11V17H16V8H18L10 2Z"
-            fill="var(--ts-accent)"
-            stroke="var(--ts-accent)"
-            strokeWidth="0.5"
-            strokeLinejoin="round"
-          />
-        </svg>
-        <span
-          className="mono font-bold text-base tracking-tight"
-          style={{ color: 'var(--ts-text-primary)' }}
-        >
-          TenderSpot
-        </span>
-      </div>
+      <BlueRhombusLogo />
 
       {/* Right side: sync info + buttons */}
       <div className="flex items-center gap-2">
