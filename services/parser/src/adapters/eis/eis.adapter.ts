@@ -10,17 +10,25 @@ function mapToNormalizedTender(input: {
   title: string;
   description: string;
   regionCode: string;
+  customer: string;
+  inn: string;
+  price: number;
+  published: string;
+  deadline: string;
+  source: 'ЕИС 223-ФЗ';
+  sourceUrl: string;
+  relevanceScore: number;
 }): NormalizedTender {
   return {
     externalId: input.externalId,
     title: input.title,
-    customer: '',
-    inn: '',
-    price: 0,
-    published: new Date().toISOString(),
-    deadline: new Date().toISOString(),
-    source: 'ЕИС 44-ФЗ',
-    sourceUrl: `https://zakupki.gov.ru/epz/order/notice/ea20/view/common-info.html?regNumber=${input.externalId}`,
+    customer: input.customer,
+    inn: input.inn,
+    price: input.price,
+    published: input.published,
+    deadline: input.deadline,
+    source: input.source,
+    sourceUrl: input.sourceUrl,
     description: input.description,
     keywords: [],
     regionCode: input.regionCode,
