@@ -67,6 +67,8 @@ const STATUS_BG: Record<TenderStatus, string> = {
 const TenderRow = ({ tender, index, onRowClick, onStatusChange }: TenderRowProps) => {
   const isRejected = tender.status === 'rejected';
   const overdue = isOverdue(tender.deadline);
+  const customerLabel = tender.title || tender.description || '—';
+  const workTypeLabel = tender.customer || '—';
 
   const handleStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     e.stopPropagation();
@@ -105,10 +107,10 @@ const TenderRow = ({ tender, index, onRowClick, onStatusChange }: TenderRowProps
       <td className="px-3 py-0" style={{ maxWidth: '240px', height: '44px' }}>
         <div
           className="text-sm font-medium truncate"
-          title={tender.customer}
+          title={customerLabel}
           style={{ color: 'var(--ts-text-primary)' }}
         >
-          {tender.customer}
+          {customerLabel}
         </div>
       </td>
 
@@ -119,10 +121,10 @@ const TenderRow = ({ tender, index, onRowClick, onStatusChange }: TenderRowProps
       >
         <div
           className="text-sm truncate"
-          title={tender.title || tender.description}
+          title={workTypeLabel}
           style={{ color: 'var(--ts-text-secondary)' }}
         >
-          {tender.title || tender.description}
+          {workTypeLabel}
         </div>
       </td>
 

@@ -12,8 +12,8 @@ interface TenderTableProps {
 
 const COLUMNS: Array<{ field: SortField | null; label: string; className: string }> = [
   { field: null, label: '#', className: 'text-right w-10' },
-  { field: 'customer', label: 'Заказчик', className: '' },
-  { field: 'title', label: 'Тип работ', className: 'hidden md:table-cell' },
+  { field: 'title', label: 'Заказчик', className: '' },
+  { field: 'customer', label: 'Тип работ', className: 'hidden md:table-cell' },
   { field: 'price', label: 'НМЦ (₽)', className: 'text-right hidden sm:table-cell' },
   { field: 'deadline', label: 'Дедлайн', className: 'hidden sm:table-cell' },
   { field: null, label: 'Источник', className: 'hidden lg:table-cell' },
