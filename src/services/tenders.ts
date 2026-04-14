@@ -9,6 +9,7 @@ function parseTenderDocument(document: Models.Document): Tender {
     id: String(document.id || document.externalId || document.regNumber || document.$id),
     title: String(document.title || ''),
     customer: String(document.customer || ''),
+    regionCode: String(document.regionCode || ''),
     inn: String(document.inn || ''),
     price: Number(document.price || 0),
     published: String(document.published || '').slice(0, 10),

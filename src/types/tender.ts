@@ -6,6 +6,7 @@ export interface Tender {
   id: string;
   title: string;
   customer: string;
+  regionCode: string;
   inn: string;
   price: number;
   published: string; // YYYY-MM-DD
@@ -22,8 +23,8 @@ export type SortField = 'deadline' | 'price' | 'published' | 'title' | 'customer
 export type SortDir = 'asc' | 'desc';
 
 export interface SortState {
-  field: SortField;
-  dir: SortDir;
+  field: SortField | null;
+  dir: SortDir | null;
 }
 
 export const STATUS_LABELS: Record<TenderStatus, string> = {
@@ -33,10 +34,3 @@ export const STATUS_LABELS: Record<TenderStatus, string> = {
   rejected: 'Отказ',
 };
 
-export const SOURCE_OPTIONS: Array<{ value: string; label: string }> = [
-  { value: 'all', label: 'Все источники' },
-  { value: 'ЕИС 44-ФЗ', label: 'ЕИС (44-ФЗ)' },
-  { value: 'ЕИС 223-ФЗ', label: 'ЕИС (223-ФЗ)' },
-  { value: 'ROOF.ru', label: 'ROOF.ru' },
-  { value: 'КомТендер', label: 'КомТендер' },
-];
