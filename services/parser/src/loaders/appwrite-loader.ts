@@ -1,4 +1,4 @@
-import { AppwriteException, Client, Databases, ID } from 'node-appwrite';
+import { AppwriteException, Client, Databases, ID, Query } from 'node-appwrite';
 import { NormalizedTender } from '../core/source-adapter';
 
 interface AppwriteLoaderConfig {
@@ -23,6 +23,34 @@ export class AppwriteTenderLoader {
     this.databases = new Databases(client);
     this.databaseId = config.databaseId;
     this.collectionId = config.collectionId;
+  }
+
+  public async cleanExpiredTenders(log?: (message: string) => void): Promise<number> {
+    const PAGE_LIMIT = 100;
+    let deleted = 0;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const cutoffIso = today.toISOString();
+
+    while (true) {
+      const page = await this.databases.listDocuments(this.databaseId, this.collectionId, [
+        Query.lessThan('deadline', cutoffIso),
+        Query.limit(PAGE_LIMIT),
+        Query.orderAsc('$id'),
+      ]);
+
+      if (page.documents.length === 0) {
+        break;
+      }
+
+      for (const doc of page.documents) {
+        await this.databases.deleteDocument(this.databaseId, this.collectionId, doc.$id);
+        deleted += 1;
+      }
+    }
+
+    log?.(`[auto-clean] Удалено ${deleted} просроченных тендеров из БД.`);
+    return deleted;
   }
 
   public async upsertMany(tenders: NormalizedTender[]): Promise<void> {
