@@ -4,10 +4,34 @@ import { runEtlPipeline } from './core/etl-runner';
 import { EisSourceAdapter } from './adapters/eis/eis.adapter';
 import { AppwriteTenderLoader } from './loaders/appwrite-loader';
 
-const targetKeywords = ['кровля', 'ПВХ мембрана', 'склад', 'ангар'];
-const targetRegionCodes = ['77', '50'];
+const targetKeywords = [
+  'кровля',
+  'ПВХ мембрана',
+  'наплавляемая кровля',
+  'рулонная кровля',
+  'мастичная кровля',
+  'кровля склада',
+  'кровля ангара',
+  'ремонт крыши',
+  'капитальный ремонт кровли',
+  'плоская кровля',
+  'гидроизоляция кровли',
+  'мягкая кровля',
+  'ремонт мягкой кровли',
+  'устройство мягкой кровли',
+  'мембранная кровля',
+  'замена кровли',
+];
+const targetRegionCodes = ['77', '50', '69'];
+
+function parserLog(message: string): void {
+  const timestamp = new Date().toISOString();
+  console.log(`[parser][${timestamp}] ${message}`);
+}
 
 async function executeSync(): Promise<void> {
+  parserLog('run started');
+
   const loader = new AppwriteTenderLoader({
     endpoint: parserEnv.APPWRITE_ENDPOINT,
     projectId: parserEnv.APPWRITE_PROJECT_ID,
@@ -23,12 +47,13 @@ async function executeSync(): Promise<void> {
       gosuslugiToken: parserEnv.EIS_GOSUSLUGI_TOKEN,
       keywords: targetKeywords,
       regionCodes: targetRegionCodes,
+      log: parserLog,
     },
     loader,
   });
 
-  console.log(
-    `[parser] ETL completed. Extracted: ${result.extracted}, loaded: ${result.loaded}`
+  parserLog(
+    `ETL completed. Extracted: ${result.extracted}, loaded: ${result.loaded}`
   );
 }
 
@@ -36,14 +61,14 @@ const runOnce = process.argv.includes('--once');
 
 if (runOnce) {
   executeSync().catch((error) => {
-    console.error('[parser] ETL failed:', error);
+    parserLog(`ETL failed: ${error instanceof Error ? error.message : String(error)}`);
     process.exitCode = 1;
   });
 } else {
-  console.log(`[parser] Scheduler started with cron: ${parserEnv.PARSER_CRON}`);
+  parserLog(`Scheduler started with cron: ${parserEnv.PARSER_CRON}`);
   cron.schedule(parserEnv.PARSER_CRON, () => {
     executeSync().catch((error) => {
-      console.error('[parser] Scheduled ETL failed:', error);
+      parserLog(`Scheduled ETL failed: ${error instanceof Error ? error.message : String(error)}`);
     });
   });
 }

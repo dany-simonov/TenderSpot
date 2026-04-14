@@ -17,16 +17,23 @@ export function formatDate(dateStr: string): string {
 
 // Format price with spaces
 export function formatPrice(price: number): string {
-  return price.toLocaleString('ru-RU') + ' ₽';
+  return Math.trunc(price).toLocaleString('ru-RU', { maximumFractionDigits: 0 }) + ' ₽';
 }
 
-// Days until deadline
-function daysUntil(dateStr: string): number {
+function isOverdue(deadlineIsoDate: string): boolean {
+  if (!deadlineIsoDate) {
+    return false;
+  }
+
+  const deadline = new Date(deadlineIsoDate);
+  if (Number.isNaN(deadline.getTime())) {
+    return false;
+  }
+
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const deadline = new Date(dateStr);
   deadline.setHours(0, 0, 0, 0);
-  return Math.ceil((deadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  return deadline.getTime() < today.getTime();
 }
 
 const SOURCE_COLORS: Record<string, string> = {
@@ -45,23 +52,21 @@ const STATUS_OPTIONS: Array<{ value: TenderStatus; label: string }> = [
 
 const STATUS_COLORS: Record<TenderStatus, string> = {
   new: '#388BFD',
-  wip: '#D29922',
-  submitted: '#2EA043',
+  wip: '#2EA043',
+  submitted: '#D29922',
   rejected: '#6E7681',
 };
 
 const STATUS_BG: Record<TenderStatus, string> = {
   new: 'rgba(56,139,253,0.12)',
-  wip: 'rgba(210,153,34,0.12)',
-  submitted: 'rgba(46,160,67,0.12)',
+  wip: 'rgba(46,160,67,0.12)',
+  submitted: 'rgba(210,153,34,0.12)',
   rejected: 'rgba(110,118,129,0.12)',
 };
 
 const TenderRow = ({ tender, index, onRowClick, onStatusChange }: TenderRowProps) => {
-  const days = daysUntil(tender.deadline);
-  const isUrgent = days <= 4;
   const isRejected = tender.status === 'rejected';
-  const isHighPrice = tender.price >= 1000000;
+  const overdue = isOverdue(tender.deadline);
 
   const handleStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     e.stopPropagation();
@@ -78,7 +83,7 @@ const TenderRow = ({ tender, index, onRowClick, onStatusChange }: TenderRowProps
       className="cursor-pointer transition-colors"
       style={{
         opacity: isRejected ? 0.45 : 1,
-        borderLeft: isUrgent ? '2px solid var(--ts-urgent)' : '2px solid transparent',
+        borderLeft: '2px solid transparent',
         transition: 'background 150ms ease',
       }}
       onMouseEnter={(e) => {
@@ -97,7 +102,7 @@ const TenderRow = ({ tender, index, onRowClick, onStatusChange }: TenderRowProps
       </td>
 
       {/* Title */}
-      <td className="px-3 py-0" style={{ maxWidth: '300px', height: '44px' }}>
+      <td className="px-3 py-0" style={{ maxWidth: '240px', height: '44px' }}>
         <div
           className="text-sm font-medium truncate"
           title={tender.title}
@@ -110,7 +115,7 @@ const TenderRow = ({ tender, index, onRowClick, onStatusChange }: TenderRowProps
       {/* Customer */}
       <td
         className="px-3 py-0 hidden md:table-cell"
-        style={{ maxWidth: '180px', height: '44px' }}
+        style={{ maxWidth: '150px', height: '44px' }}
       >
         <div
           className="text-sm truncate"
@@ -128,7 +133,7 @@ const TenderRow = ({ tender, index, onRowClick, onStatusChange }: TenderRowProps
       >
         <span
           className="text-sm font-medium tabular-nums"
-          style={{ color: isHighPrice ? 'var(--ts-price-high)' : 'var(--ts-text-primary)' }}
+          style={{ color: 'var(--ts-text-primary)' }}
         >
           {formatPrice(tender.price)}
         </span>
@@ -138,20 +143,13 @@ const TenderRow = ({ tender, index, onRowClick, onStatusChange }: TenderRowProps
       <td className="px-3 py-0 whitespace-nowrap hidden sm:table-cell" style={{ height: '44px' }}>
         <span
           className="text-sm"
-          style={{ color: isUrgent ? 'var(--ts-urgent)' : 'var(--ts-text-secondary)' }}
-          title={isUrgent && days > 0 ? `Осталось ${days} дн.` : undefined}
+          style={{
+            color: overdue ? '#ef4444' : 'var(--ts-text-secondary)',
+            textDecoration: overdue ? 'underline' : 'none',
+          }}
+          title={overdue ? 'Дедлайн уже прошел' : undefined}
         >
           {formatDate(tender.deadline)}
-          {isUrgent && days > 0 && (
-            <span className="ml-1 text-xs" style={{ color: 'var(--ts-urgent)' }}>
-              ({days}д)
-            </span>
-          )}
-          {days <= 0 && (
-            <span className="ml-1 text-xs" style={{ color: 'var(--ts-urgent)' }}>
-              (просрочен)
-            </span>
-          )}
         </span>
       </td>
 

@@ -1,4 +1,4 @@
-import { Client, Databases, ID, Query } from 'node-appwrite';
+import { AppwriteException, Client, Databases, ID } from 'node-appwrite';
 import { NormalizedTender } from '../core/source-adapter';
 
 interface AppwriteLoaderConfig {
@@ -31,14 +31,14 @@ export class AppwriteTenderLoader {
     }
   }
 
-  private async upsertOne(tender: NormalizedTender): Promise<void> {
-    const existing = await this.databases.listDocuments(this.databaseId, this.collectionId, [
-      Query.equal('externalId', tender.externalId),
-      Query.limit(1),
-    ]);
+  public async upsertOne(tender: NormalizedTender): Promise<void> {
+    const documentId = String(tender.externalId).trim();
+    if (!documentId) {
+      throw new Error('Cannot upsert tender without externalId');
+    }
 
     const payload = {
-      externalId: tender.externalId,
+      id: tender.externalId,
       title: tender.title,
       customer: tender.customer,
       inn: tender.inn,
@@ -50,20 +50,39 @@ export class AppwriteTenderLoader {
       description: tender.description,
       keywords: tender.keywords,
       regionCode: tender.regionCode,
+    };
+
+    const createPayload = {
+      ...payload,
       status: tender.status,
       notes: tender.notes,
     };
 
-    if (existing.total > 0) {
+    try {
+      await this.databases.createDocument(
+        this.databaseId,
+        this.collectionId,
+        ID.custom(documentId),
+        createPayload
+      );
+    } catch (error) {
+      const code =
+        error instanceof AppwriteException
+          ? error.code
+          : typeof (error as { code?: unknown })?.code === 'number'
+            ? ((error as { code: number }).code as number)
+            : undefined;
+
+      if (code !== 409) {
+        throw error;
+      }
+
       await this.databases.updateDocument(
         this.databaseId,
         this.collectionId,
-        existing.documents[0].$id,
-        payload
+        documentId,
+        createPayload
       );
-      return;
     }
-
-    await this.databases.createDocument(this.databaseId, this.collectionId, ID.unique(), payload);
   }
 }

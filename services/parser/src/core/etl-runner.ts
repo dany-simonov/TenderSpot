@@ -17,10 +17,34 @@ export async function runEtlPipeline(args: {
   loader: AppwriteTenderLoader;
 }): Promise<{ extracted: number; loaded: number }> {
   const allTenders = [];
+  const streamedIds = new Set<string>();
+
+  const log = (message: string) => {
+    args.context.log?.(message);
+  };
+
+  const streamingContext: ExtractContext = {
+    ...args.context,
+    onTenderExtracted: async (tender) => {
+      if (streamedIds.has(tender.externalId)) {
+        return;
+      }
+
+      await args.loader.upsertOne(tender);
+      streamedIds.add(tender.externalId);
+      log(
+        `[etl] streamed upsert ${streamedIds.size}: ${tender.externalId} | ${tender.title.slice(0, 90)}`
+      );
+    },
+  };
+
+  log('[etl] pipeline started');
 
   for (const adapter of args.adapters) {
-    const tenders = await adapter.extract(args.context);
+    log(`[etl] extracting with adapter ${adapter.sourceName}`);
+    const tenders = await adapter.extract(streamingContext);
     allTenders.push(...tenders);
+    log(`[etl] adapter ${adapter.sourceName} extracted ${tenders.length}`);
   }
 
   const unique = new Map<string, (typeof allTenders)[number]>();
@@ -35,12 +59,21 @@ export async function runEtlPipeline(args: {
     .sort((a, b) => getRelevanceScore(b) - getRelevanceScore(a))
     .slice(0, MAX_TENDERS_TO_LOAD);
 
-  if (deduped.length > 0) {
-    await args.loader.upsertMany(deduped);
+  for (const tender of deduped) {
+    if (streamedIds.has(tender.externalId)) {
+      continue;
+    }
+
+    await args.loader.upsertOne(tender);
+    streamedIds.add(tender.externalId);
   }
+
+  log(
+    `[etl] pipeline finished: extracted=${allTenders.length}, deduped=${deduped.length}, loaded=${streamedIds.size}`
+  );
 
   return {
     extracted: allTenders.length,
-    loaded: deduped.length,
+    loaded: streamedIds.size,
   };
 }

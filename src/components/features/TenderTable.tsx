@@ -40,8 +40,8 @@ const TenderTable = ({
   };
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full border-collapse" style={{ minWidth: '600px' }}>
+    <div>
+      <table className="w-full border-collapse table-fixed">
         <thead>
           <tr style={{ borderBottom: '1px solid var(--ts-border)' }}>
             {COLUMNS.map((col, i) => (

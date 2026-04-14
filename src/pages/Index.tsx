@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { Tender, TenderStatus, SortField, SortState } from '@/types/tender';
 import {
   useRealtimeTendersSync,
@@ -12,6 +12,19 @@ import Header from '@/components/layout/Header';
 import FilterBar from '@/components/features/FilterBar';
 import TenderTable from '@/components/features/TenderTable';
 import TenderDrawer from '@/components/features/TenderDrawer';
+import { useLocalStorage } from '@/hooks/useLocalStorage';
+import { toast } from '@/hooks/use-toast';
+
+function isSameLocalDay(aIso: string, bIso: string): boolean {
+  const a = new Date(aIso);
+  const b = new Date(bIso);
+
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
 
 const Index = () => {
   const [theme, toggleTheme] = useTheme();
@@ -23,20 +36,13 @@ const Index = () => {
     isError,
     error,
     refetch,
-    dataUpdatedAt,
   } = useTendersQuery();
   const updateStatusMutation = useUpdateTenderStatusMutation();
   const updateNotesMutation = useUpdateTenderNotesMutation();
 
   useRealtimeTendersSync();
 
-  const [lastSync, setLastSync] = useState(new Date().toISOString());
-
-  useEffect(() => {
-    if (dataUpdatedAt > 0) {
-      setLastSync(new Date(dataUpdatedAt).toISOString());
-    }
-  }, [dataUpdatedAt]);
+  const [lastSync, setLastSync] = useLocalStorage<string>('tenderspot_last_manual_refresh_at', '');
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<TenderStatus | 'all'>('all');
@@ -142,9 +148,22 @@ const Index = () => {
   }, [tenders, filtered, statusFilter, sourceFilter, search]);
 
   const handleRefresh = useCallback(async () => {
+    const nowIso = new Date().toISOString();
+    if (lastSync && isSameLocalDay(lastSync, nowIso)) {
+      toast({
+        title: 'Обновление недоступно',
+        description: `Вы уже обновляли сегодня. Последнее обновление: ${new Date(lastSync).toLocaleString('ru-RU')}`,
+      });
+      return;
+    }
+
     await refetch();
-    setLastSync(new Date().toISOString());
-  }, [refetch]);
+    setLastSync(nowIso);
+    toast({
+      title: 'Данные обновлены',
+      description: `Последнее обновление: ${new Date(nowIso).toLocaleString('ru-RU')}`,
+    });
+  }, [lastSync, refetch, setLastSync]);
 
   const handleLogout = useCallback(async () => {
     await logout();

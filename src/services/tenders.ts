@@ -6,7 +6,7 @@ import { Tender, TenderStatus } from '@/types/tender';
 function parseTenderDocument(document: Models.Document): Tender {
   return {
     documentId: document.$id,
-    id: String(document.externalId || document.regNumber || document.$id),
+    id: String(document.id || document.externalId || document.regNumber || document.$id),
     title: String(document.title || ''),
     customer: String(document.customer || ''),
     inn: String(document.inn || ''),

@@ -23,11 +23,16 @@ const schema = z.object({
   APPWRITE_PROJECT_ID: z.string().min(1),
   APPWRITE_DATABASE_ID: z.string().min(1),
   APPWRITE_TENDERS_COLLECTION_ID: z.string().min(1),
+  APPWRITE_PARSER_STATE_COLLECTION_ID: z.string().optional(),
   PARSER_APPWRITE_API_KEY: z.string().min(1),
   PARSER_SYNC_SECRET: z.string().min(1),
-  EIS_EXTRACT_METHOD: z.enum(['ftp', 'api']).default('ftp'),
+  EIS_EXTRACT_METHOD: z.enum(['ftp', 'api', 'human']).default('human'),
   EIS_GOSUSLUGI_TOKEN: z.string().optional(),
-  PARSER_CRON: z.string().default('*/30 * * * *'),
+  EIS_HUMAN_SESSION_MIN_SECONDS: z.coerce.number().int().positive().default(1200),
+  EIS_HUMAN_SESSION_MAX_SECONDS: z.coerce.number().int().positive().default(2400),
+  EIS_HUMAN_MIN_STEP_DELAY_MS: z.coerce.number().int().positive().default(2500),
+  EIS_HUMAN_MAX_STEP_DELAY_MS: z.coerce.number().int().positive().default(15000),
+  PARSER_CRON: z.string().default('17 3 */2 * *'),
 });
 
 const normalizedEnv = {
@@ -41,6 +46,9 @@ const normalizedEnv = {
     process.env.APPWRITE_TENDERS_COLLECTION_ID ??
     process.env.VITE_APPWRITE_TENDERS_COLLECTION_ID ??
     process.env.VITE_APPWRITE_COLLECTION_ID,
+  APPWRITE_PARSER_STATE_COLLECTION_ID:
+    process.env.APPWRITE_PARSER_STATE_COLLECTION_ID ??
+    process.env.VITE_APPWRITE_PARSER_STATE_COLLECTION_ID,
 };
 
 export const parserEnv = schema.parse(normalizedEnv);
