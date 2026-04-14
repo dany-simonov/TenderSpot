@@ -7,6 +7,7 @@ interface HeaderProps {
   onRefresh: () => void;
   theme: Theme;
   onToggleTheme: () => void;
+  onLogout: () => void;
 }
 
 // Format ISO timestamp to Russian locale: DD.MM.YYYY, HH:MM
@@ -24,12 +25,12 @@ function formatSyncTime(iso: string): string {
   return `${day}.${month}.${year}, ${hours}:${minutes}`;
 }
 
-const Header = ({ lastSync, onRefresh, theme, onToggleTheme }: HeaderProps) => {
+const Header = ({ lastSync, onRefresh, theme, onToggleTheme, onLogout }: HeaderProps) => {
   const isDark = theme === 'dark';
 
   return (
     <header
-      className="sticky top-0 z-40 flex items-center justify-between px-4 sm:px-6 h-12 transition-colors"
+      className="sticky top-0 z-40 flex items-center justify-between px-4 sm:px-6 h-12 pr-24 sm:pr-28 transition-colors relative"
       style={{
         backgroundColor: 'var(--ts-surface)',
         borderBottom: '1px solid var(--ts-border)',
@@ -38,7 +39,7 @@ const Header = ({ lastSync, onRefresh, theme, onToggleTheme }: HeaderProps) => {
       <BlueRhombusLogo />
 
       {/* Right side: sync info + buttons */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 mr-2 sm:mr-4">
         <span
           className="hidden sm:inline text-xs"
           style={{ color: 'var(--ts-text-secondary)' }}
@@ -72,6 +73,14 @@ const Header = ({ lastSync, onRefresh, theme, onToggleTheme }: HeaderProps) => {
           <span>Обновить</span>
         </button>
       </div>
+
+      <button
+        onClick={onLogout}
+        className="absolute right-4 sm:right-6 top-1/2 -translate-y-1/2 text-xs px-3 py-1.5 rounded btn-outline"
+        style={{ borderRadius: '4px' }}
+      >
+        Выйти
+      </button>
     </header>
   );
 };
