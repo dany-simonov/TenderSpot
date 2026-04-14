@@ -25,6 +25,10 @@ coverage
 .env.*
 !.env.example
 
+.venv
+venv
+
+
 # Runtime artifacts
 pids
 *.pid
