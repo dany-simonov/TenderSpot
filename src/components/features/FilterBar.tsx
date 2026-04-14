@@ -1,5 +1,5 @@
-import { Search, ChevronDown } from 'lucide-react';
-import { TenderStatus, SOURCE_OPTIONS, STATUS_LABELS } from '@/types/tender';
+import { Search } from 'lucide-react';
+import { TenderStatus, STATUS_LABELS } from '@/types/tender';
 
 interface StatusCount {
   new: number;
@@ -14,8 +14,8 @@ interface FilterBarProps {
   onSearchChange: (v: string) => void;
   statusFilter: TenderStatus | 'all';
   onStatusFilterChange: (v: TenderStatus | 'all') => void;
-  sourceFilter: string;
-  onSourceFilterChange: (v: string) => void;
+  hideNoDeadline: boolean;
+  onHideNoDeadlineChange: (v: boolean) => void;
   counts: StatusCount;
 }
 
@@ -40,8 +40,8 @@ const FilterBar = ({
   onSearchChange,
   statusFilter,
   onStatusFilterChange,
-  sourceFilter,
-  onSourceFilterChange,
+  hideNoDeadline,
+  onHideNoDeadlineChange,
   counts,
 }: FilterBarProps) => {
   return (
@@ -49,8 +49,8 @@ const FilterBar = ({
       className="sticky top-12 z-30 px-4 sm:px-6 py-3 transition-colors"
       style={{ backgroundColor: 'var(--ts-bg)', borderBottom: '1px solid var(--ts-border)' }}
     >
-      {/* Row 1: search + source */}
-      <div className="flex flex-col sm:flex-row gap-2 mb-3">
+      {/* Row 1: search + deadline toggle */}
+      <div className="flex flex-col sm:flex-row gap-2 mb-3 items-stretch sm:items-center">
         {/* Search */}
         <div className="relative flex-1">
           <Search
@@ -62,7 +62,7 @@ const FilterBar = ({
             type="text"
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Поиск по названию, заказчику..."
+            placeholder="Поиск по всем полям..."
             className="w-full pl-8 pr-3 py-2 text-sm rounded transition-colors"
             style={{
               backgroundColor: 'var(--ts-surface)',
@@ -76,37 +76,22 @@ const FilterBar = ({
           />
         </div>
 
-        {/* Source filter */}
-        <div className="relative">
-          <select
-            value={sourceFilter}
-            onChange={(e) => onSourceFilterChange(e.target.value)}
-            className="appearance-none pl-3 pr-8 py-2 text-sm rounded cursor-pointer transition-colors"
-            style={{
-              backgroundColor: 'var(--ts-surface)',
-              border: '1px solid var(--ts-border)',
-              color: 'var(--ts-text-primary)',
-              outline: 'none',
-              borderRadius: '4px',
-              minWidth: '160px',
-            }}
-          >
-            {SOURCE_OPTIONS.map((opt) => (
-              <option
-                key={opt.value}
-                value={opt.value}
-                style={{ backgroundColor: 'var(--ts-surface)', color: 'var(--ts-text-primary)' }}
-              >
-                {opt.label}
-              </option>
-            ))}
-          </select>
-          <ChevronDown
-            size={12}
-            className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none"
-            style={{ color: 'var(--ts-text-secondary)' }}
+        <label
+          className="inline-flex items-center gap-2 px-3 py-2 rounded text-sm"
+          style={{
+            backgroundColor: 'var(--ts-surface)',
+            border: '1px solid var(--ts-border)',
+            color: 'var(--ts-text-primary)',
+            borderRadius: '4px',
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={hideNoDeadline}
+            onChange={(e) => onHideNoDeadlineChange(e.target.checked)}
           />
-        </div>
+          Скрыть без дедлайна
+        </label>
       </div>
 
       {/* Row 2: status pills + counters */}
