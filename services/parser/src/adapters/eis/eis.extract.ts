@@ -22,7 +22,7 @@ type HumanSession = {
 };
 
 const DAYS_BACK = 120;
-const MIN_PRICE = 200_000;
+const MIN_PRICE = 500_000;
 const MAX_TENDERS = 500;
 const SEARCH_PAGES_PER_KEYWORD = 15;
 const USER_AGENT =
@@ -108,48 +108,52 @@ const MOSCOW_MARKERS = [
 
 const REGIONAL_BLACKLIST_WORDS = [
   'сахалин',
-  'якутск',
+  'якут',
   'курган',
   'свердловск',
-  'екатеринбург',
-  'красноярск',
-  'донецк',
-  'новосибирск',
+  'екатер',
+  'красноярс',
+  'донец',
+  'новосиб',
   'саратов',
   'петербург',
   'спб',
   'хабаровск',
-  'архангельск',
+  'архангельс',
   'магадан',
   'уфа',
   'башкортостан',
-  'казань',
+  'казан',
   'татарстан',
   'омск',
-  'нижний новгород',
-  'челябинск',
-  'норильск',
+  'нижегород',
+  'челябинс',
+  'норильс',
   'калининград',
-  'ленинградская',
+  'ленинградск',
   'псков',
-  'рязань',
-  'ярославль',
-  'луганск',
-  'тюмень',
+  'рязан',
+  'ярослав',
+  'луганс',
+  'тюмен',
   'краснодар',
-  'чукотка',
+  'чукот',
   'белгород',
   'салехард',
-  'магнитогорск',
+  'магнитогорс',
   'владивосток',
   'мурманск',
-  'камчатка',
-  'чебоксары',
+  'камчат',
+  'чебоксар',
+  'чуваш',
+  'смоленск',
+  'вольск',
   'волгоград',
   'воронеж',
-  'самара',
-  'ростов-на-дону',
+  'самар',
+  'ростов',
   'иркутск',
+  'марий эл',
 ];
 
 const AREA_REGEX = /(\d{1,6}(?:[\s.,]\d{1,2})?)\s*(?:м2|м²|кв\.?\s*м|м\.?\s*кв\.?)/i;
@@ -351,68 +355,20 @@ function parseDateFromText(input: string): string {
   return Number.isNaN(iso.getTime()) ? new Date().toISOString() : iso.toISOString();
 }
 
-function extractDateNearLabel(block: string, labelPattern: RegExp): string {
-  const $ = load(block);
-
-  const directValue = $('.data-block__title')
-    .filter((_i, el) => normalizeWhitespace($(el).text()).toLowerCase() === 'окончание подачи заявок')
-    .first()
-    .next('.data-block__value')
-    .text()
-    .trim();
-
-  if (directValue) {
-    const dateMatch = normalizeWhitespace(directValue).match(/\d{2}\.\d{2}\.\d{4}/);
-    if (dateMatch?.[0]) {
-      return parseDateFromText(dateMatch[0]);
-    }
-  }
-
-  const nodes = $('div, span, p, dt, dd, td, th, li');
-
-  for (let i = 0; i < nodes.length; i += 1) {
-    const node = nodes.eq(i);
-    const text = normalizeWhitespace(node.text());
-    if (!labelPattern.test(text)) {
-      continue;
-    }
-
-    const siblingCandidates = [
-      node.next().text(),
-      node.nextAll('div, span, p, dd, td, li').first().text(),
-      node.parent().text(),
-      node.parent().next().text(),
-    ];
-
-    for (const candidate of siblingCandidates) {
-      const dateMatch = normalizeWhitespace(candidate).match(/\d{2}\.\d{2}\.\d{4}/);
-      if (dateMatch?.[0]) {
-        return parseDateFromText(dateMatch[0]);
-      }
-    }
-  }
-
-  const plain = normalizeWhitespace($.root().text());
-  const contextual = plain.match(
-    new RegExp(`${labelPattern.source}[^\\d]{0,50}(\\d{2}\\.\\d{2}\\.\\d{4})`, 'iu')
-  );
-  if (contextual?.[1]) {
-    return parseDateFromText(contextual[1]);
-  }
-
-  return '';
-}
-
 function extractDeadlineFromBlock(block: string): string {
-  return extractDateNearLabel(block, /окончание\s+подачи\s+заяв(ок|ки)/i);
+  const $ = load(block);
+  const fullText = normalizeWhitespace($.root().text());
+  const deadlineMatch = fullText.match(/Окончание\s+подачи\s+заяв(?:ок|ки)[\s\S]*?(\d{2}\.\d{2}\.\d{4})/i);
+
+  if (!deadlineMatch?.[1]) {
+    return '';
+  }
+
+  return parseDateFromText(deadlineMatch[1]);
 }
 
 function normalizeCyrillic(value: string): string {
   return normalize(value).replace(/ё/g, 'е');
-}
-
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function normalizeWhitespace(value: string): string {
@@ -960,10 +916,9 @@ function calculateRegionalScore(entry: TenderAccumulator): number {
     relevanceScore -= 1000;
   }
 
-  const blacklistHit = REGIONAL_BLACKLIST_WORDS.some((word) => {
-    const pattern = new RegExp(`(^|[^\\p{L}\\p{N}_])${escapeRegExp(normalizeCyrillic(word))}([^\\p{L}\\p{N}_]|$)`, 'iu');
-    return pattern.test(scope);
-  });
+  const blacklistHit = REGIONAL_BLACKLIST_WORDS.some((word) =>
+    scope.includes(normalizeCyrillic(word))
+  );
 
   if (blacklistHit) {
     relevanceScore -= 1000;
