@@ -101,28 +101,28 @@ const TenderRow = ({ tender, index, onRowClick, onStatusChange }: TenderRowProps
         {index}
       </td>
 
-      {/* Title */}
+      {/* Customer */}
       <td className="px-3 py-0" style={{ maxWidth: '240px', height: '44px' }}>
         <div
           className="text-sm font-medium truncate"
-          title={tender.title}
+          title={tender.customer}
           style={{ color: 'var(--ts-text-primary)' }}
         >
-          {tender.title}
+          {tender.customer}
         </div>
       </td>
 
-      {/* Customer */}
+      {/* Work type */}
       <td
         className="px-3 py-0 hidden md:table-cell"
         style={{ maxWidth: '150px', height: '44px' }}
       >
         <div
           className="text-sm truncate"
-          title={tender.customer}
+          title={tender.title || tender.description}
           style={{ color: 'var(--ts-text-secondary)' }}
         >
-          {tender.customer}
+          {tender.title || tender.description}
         </div>
       </td>
 

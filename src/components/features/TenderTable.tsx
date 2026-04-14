@@ -12,8 +12,8 @@ interface TenderTableProps {
 
 const COLUMNS: Array<{ field: SortField | null; label: string; className: string }> = [
   { field: null, label: '#', className: 'text-right w-10' },
-  { field: 'title', label: 'Название тендера', className: '' },
-  { field: 'customer', label: 'Заказчик', className: 'hidden md:table-cell' },
+  { field: 'customer', label: 'Заказчик', className: '' },
+  { field: 'title', label: 'Тип работ', className: 'hidden md:table-cell' },
   { field: 'price', label: 'НМЦ (₽)', className: 'text-right hidden sm:table-cell' },
   { field: 'deadline', label: 'Дедлайн', className: 'hidden sm:table-cell' },
   { field: null, label: 'Источник', className: 'hidden lg:table-cell' },
@@ -29,7 +29,7 @@ const TenderTable = ({
   onStatusChange,
 }: TenderTableProps) => {
   const SortIcon = ({ field }: { field: SortField }) => {
-    if (sort.field !== field) {
+    if (sort.field !== field || !sort.dir) {
       return <ChevronUp size={10} style={{ color: 'var(--ts-border)' }} />;
     }
     return sort.dir === 'asc' ? (
@@ -40,8 +40,8 @@ const TenderTable = ({
   };
 
   return (
-    <div>
-      <table className="w-full border-collapse table-fixed">
+    <div className="w-full overflow-x-auto">
+      <table className="w-full border-collapse table-fixed min-w-[720px] sm:min-w-0">
         <thead>
           <tr style={{ borderBottom: '1px solid var(--ts-border)' }}>
             {COLUMNS.map((col, i) => (
