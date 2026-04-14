@@ -68,6 +68,8 @@ export async function runEtlPipeline(args: {
     streamedIds.add(tender.externalId);
   }
 
+  await args.loader.cleanExpiredTenders(log);
+
   log(
     `[etl] pipeline finished: extracted=${allTenders.length}, deduped=${deduped.length}, loaded=${streamedIds.size}`
   );
