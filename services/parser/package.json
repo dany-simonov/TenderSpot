@@ -9,6 +9,7 @@
     "run": "tsx src/index.ts --once",
     "schedule": "tsx src/index.ts",
     "clear": "tsx src/utils/clear-db.ts",
+    "debug:discover": "tsx src/utils/debug-5-tenders.ts",
     "build": "tsc -p tsconfig.json"
   },
   "dependencies": {

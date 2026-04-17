@@ -17,7 +17,7 @@ interface EisRawTender {
   relevanceScore: number;
 }
 
-type HumanSession = {
+export type HumanSession = {
   cookieJar: Map<string, string>;
 };
 
@@ -74,6 +74,47 @@ const NON_B2B_CUSTOMERS = [
   'администрация',
   'муниципальное бюджетное учреждение',
   'государственное бюджетное учреждение',
+  'тсж',
+  'тсн',
+  'жск',
+  'жилищный кооператив',
+  'управляющая компания жил',
+  'фонд капитального ремонта',
+  'региональный оператор',
+  'детский сад',
+  'детский дом',
+  'дом культуры',
+  'библиотека',
+  'музей',
+  'театр',
+  'филармония',
+  'центр социального',
+  'учреждение социального',
+  'дом социального',
+  'социального обслуживания',
+  'психоневрологический',
+  'наркологический',
+  'дом престарелых',
+  'реабилитационный центр',
+  'санаторий',
+  'дворец спорта',
+  'ледовый дворец',
+  'епархия',
+  'монастырь',
+  'приход',
+  'войсковая часть',
+  'фсб',
+  'мвд',
+  'минобороны',
+  'уфсин',
+  'исправительная колония',
+  'техникум',
+  'колледж',
+  'лицей',
+  'университет',
+  'академия',
+  'институт',
+  'общежитие',
 ];
 
 const MOSCOW_AGGLOMERATION = [
@@ -106,16 +147,99 @@ const MOSCOW_MARKERS = [
   ...MOSCOW_AGGLOMERATION,
 ];
 
+const POSITIVE_REGION_MARKERS = [
+  'московская обл',
+  'мо,',
+  ', мо ',
+  'подмосковье',
+  'тверская обл',
+  'тверской обл',
+  'г. тверь',
+  'г.тверь',
+  'новомосковский',
+  'троицкий',
+  'новая москва',
+  'люберецкий',
+  'мытищинский',
+  'красногорский',
+  'одинцовский',
+  'ленинский',
+  'щелковский',
+  'щёлковский',
+  'дмитровский',
+  'солнечногорский',
+  'истринский',
+  'коломна',
+  'серпухов',
+  'ногинск',
+  'фрязево',
+  'зеленоград',
+];
+
+const TARGET_INN_PREFIXES = ['77', '50', '69'];
+
+const NON_TARGET_INN_PREFIXES_HARD = [
+  '01', '02', '03', '04', '05', '06', '07', '08', '09',
+  '10', '11', '12', '13', '14', '15', '16', '17', '18', '19',
+  '20', '21', '22', '23', '24', '25', '26', '27', '28', '29',
+  '30', '31', '32', '33', '34', '35', '36', '37', '38', '39',
+  '40', '41', '42', '43', '44', '45', '46', '47', '48', '49',
+  '51', '52', '53', '54', '55', '56', '57', '58', '59',
+  '60', '61', '62', '63', '64', '65', '66', '67', '68',
+  '70', '71', '72', '73', '74', '75', '76', '79', '83',
+  '86', '87', '89', '91', '92', '93', '94', '95', '96', '97', '98', '99',
+];
+
 const REGIONAL_BLACKLIST_WORDS = [
+  'саратов',
+  'свердловск',
+  'костром',
+  'хабаровск',
+  'ленинград',
+  'краснодар',
+  'красноярск',
+  'владивосток',
+  'ростов',
   'сахалин',
   'якут',
   'курган',
   'свердловск',
+  'екатеринбург',
   'екатер',
+  'нижний новгород',
   'красноярс',
   'донец',
   'новосиб',
+  'новокузнецк',
+  'кемерово',
+  'барнаул',
+  'томск',
+  'пенза',
+  'тамбов',
+  'липецк',
+  'брянск',
+  'орел',
+  'кострома',
+  'иваново',
+  'владимир',
+  'тула',
+  'нальчик',
+  'махачкал',
+  'грозный',
+  'симферополь',
+  'севастополь',
+  'ставрополь',
   'саратов',
+  'астрахань',
+  'пермь',
+  'ижевск',
+  'оренбург',
+  'абакан',
+  'кызыл',
+  'улан-удэ',
+  'чита',
+  'благовещенск',
+  'биробиджан',
   'петербург',
   'спб',
   'хабаровск',
@@ -155,6 +279,8 @@ const REGIONAL_BLACKLIST_WORDS = [
   'иркутск',
   'марий эл',
 ];
+
+const CITY_REGEX = /(?:г|город)[.\s]+([а-яё][а-яё\s-]{2,})/gi;
 
 const AREA_REGEX = /(\d{1,6}(?:[\s.,]\d{1,2})?)\s*(?:м2|м²|кв\.?\s*м|м\.?\s*кв\.?)/i;
 
@@ -294,21 +420,21 @@ function parsePersistedCookies(rows: string[]): Map<string, string> {
   return jar;
 }
 
-async function loadSession(): Promise<HumanSession> {
+export async function loadSession(): Promise<HumanSession> {
   const persisted = await stateStore.loadCookies();
   return {
     cookieJar: parsePersistedCookies(persisted),
   };
 }
 
-async function saveSession(session: HumanSession): Promise<void> {
+export async function saveSession(session: HumanSession): Promise<void> {
   const serialized = Array.from(session.cookieJar.entries()).map(
     ([name, value]) => `${name}=${value}`
   );
   await stateStore.saveCookies(serialized);
 }
 
-async function humanFetch(
+export async function humanFetch(
   session: HumanSession,
   url: string,
   referer?: string
@@ -351,8 +477,8 @@ function parseDateFromText(input: string): string {
     return new Date().toISOString();
   }
 
-  const iso = new Date(`${match[3]}-${match[2]}-${match[1]}T00:00:00.000Z`);
-  return Number.isNaN(iso.getTime()) ? new Date().toISOString() : iso.toISOString();
+  const parsed = parseRuDate(`${match[1]}.${match[2]}.${match[3]}`);
+  return parsed ? parsed.toISOString() : new Date().toISOString();
 }
 
 function extractDeadlineFromBlock(block: string): string {
@@ -373,6 +499,16 @@ function normalizeCyrillic(value: string): string {
 
 function normalizeWhitespace(value: string): string {
   return value.replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function parseRuDate(dateStr: string): Date | null {
+  const [day, month, year] = dateStr.split('.');
+  if (!day || !month || !year) {
+    return null;
+  }
+
+  const candidate = new Date(`${year}-${month}-${day}T00:00:00.000Z`);
+  return Number.isNaN(candidate.getTime()) ? null : candidate;
 }
 
 function findPriceLikeText(candidates: string[]): string {
@@ -547,7 +683,7 @@ function extractBlocks(html: string): string[] {
   return fallback ?? [];
 }
 
-function buildTenderFromBlock(block: string): {
+function buildTenderFromBlock(block: string, log?: (message: string) => void): {
   tender: EisRawTender | null;
   rejectReason?: string;
 } {
@@ -622,7 +758,7 @@ function buildTenderFromBlock(block: string): {
     regionText,
   };
 
-  const finalized = finalizeTender(candidate, undefined);
+  const finalized = finalizeTender(candidate, undefined, log);
 
   return finalized;
 }
@@ -661,6 +797,15 @@ function buildSearchUrl(keyword: string, page: number, regionCodes: string[]): s
   return `${EIS_RESULTS_URL}?${params.toString()}`;
 }
 
+function extractExternalIdFast(block: string): string {
+  const regNumber = block.match(/regNumber=(\d{8,})/i)?.[1];
+  if (regNumber) {
+    return regNumber;
+  }
+
+  return block.match(/\b\d{11,19}\b/)?.[0] ?? '';
+}
+
 async function browseResultsHumanLike(args: {
   keywords: string[];
   regionCodes: string[];
@@ -672,6 +817,7 @@ async function browseResultsHumanLike(args: {
   const session = await loadSession();
   const collected: EisRawTender[] = [];
   const emittedIds = new Set<string>();
+  const processedIds = new Set<string>();
 
   const stats = {
     scannedBlocks: 0,
@@ -704,6 +850,7 @@ async function browseResultsHumanLike(args: {
         rejectedByReason: {} as Record<string, number>,
       };
       let stopAfterKeyword = false;
+      let rejectOnlyPriceForKeyword = true;
 
       log(`[human] keyword pass: ${keyword}`);
       for (let page = 1; page <= SEARCH_PAGES_PER_KEYWORD; page += 1) {
@@ -715,8 +862,21 @@ async function browseResultsHumanLike(args: {
         perKeywordStats.scannedBlocks += blocks.length;
         log(`[human] found blocks on page ${page}: ${blocks.length}`);
 
+        if (blocks.length === 0) {
+          log(`[human] 0 blocks found on page ${page}. Exiting pagination for this keyword.`);
+          break;
+        }
+
         for (const block of blocks) {
-          const parsed = buildTenderFromBlock(block);
+          const quickExternalId = extractExternalIdFast(block);
+          if (quickExternalId) {
+            if (processedIds.has(quickExternalId)) {
+              continue;
+            }
+            processedIds.add(quickExternalId);
+          }
+
+          const parsed = buildTenderFromBlock(block, log);
           stats.parsedBlocks += 1;
           perKeywordStats.parsedBlocks += 1;
 
@@ -725,6 +885,10 @@ async function browseResultsHumanLike(args: {
               (stats.rejectedByReason[parsed.rejectReason] ?? 0) + 1;
             perKeywordStats.rejectedByReason[parsed.rejectReason] =
               (perKeywordStats.rejectedByReason[parsed.rejectReason] ?? 0) + 1;
+
+            if (parsed.rejectReason !== 'price-below-threshold') {
+              rejectOnlyPriceForKeyword = false;
+            }
           }
 
           const tender = parsed.tender;
@@ -755,6 +919,18 @@ async function browseResultsHumanLike(args: {
             stopAfterKeyword = true;
             break;
           }
+        }
+
+        if (
+          page >= 3 &&
+          perKeywordStats.matched === 0 &&
+          perKeywordStats.parsedBlocks > 0 &&
+          rejectOnlyPriceForKeyword
+        ) {
+          log(
+            `[human] low-signal early-exit: keyword="${keyword}", page=${page}, reason=price-only-rejections`
+          );
+          break;
         }
 
         if (collected.length >= MAX_TENDERS) {
@@ -823,9 +999,9 @@ function parseDate(raw: string, fallback?: Date): string {
 
   const dmY = text.match(/(\d{2})[./-](\d{2})[./-](\d{4})/);
   if (dmY) {
-    const candidate = new Date(`${dmY[3]}-${dmY[2]}-${dmY[1]}T00:00:00.000Z`);
-    if (!Number.isNaN(candidate.getTime())) {
-      return candidate.toISOString();
+    const parsed = parseRuDate(`${dmY[1]}.${dmY[2]}.${dmY[3]}`);
+    if (parsed) {
+      return parsed.toISOString();
     }
   }
 
@@ -880,44 +1056,89 @@ function hasSoftRoofScope(entry: TenderAccumulator): boolean {
   return !containsAny(text, HARD_ROOF_EXCLUDE);
 }
 
-function calculateRegionalScore(entry: TenderAccumulator): number {
-  let relevanceScore = 0;
-  const title = normalizeCyrillic(entry.title);
-  const customer = normalizeCyrillic(entry.customer);
-  const description = normalizeCyrillic(entry.description);
-  const scope = `${title} ${customer} ${description}`;
+function hasTargetPostalIndex(text: string): boolean {
+  return /\b(10[1-9]|1[1-2]\d|14[0-3]|17[0-2])\d{3}\b/.test(text);
+}
 
-  const moscowHit = MOSCOW_MARKERS.some(
-    (marker) => scope.includes(normalizeCyrillic(marker))
-  );
-  if (moscowHit) {
-    relevanceScore += 50;
+function evaluateZipScore(fullText: string): number {
+  const zipCodes = fullText.match(/\b\d{6}\b/g) || [];
+  let badZipFound = false;
+  let goodZipFound = false;
+
+  for (const zip of zipCodes) {
+    if (/^(10|11|12|14|17)/.test(zip)) {
+      goodZipFound = true;
+    } else {
+      badZipFound = true;
+    }
   }
 
-  if (scope.includes('тверь') || scope.includes('тверская область')) {
-    relevanceScore += 50;
-  }
+  return badZipFound && !goodZipFound ? -5000 : 0;
+}
 
-  const cityRegex = /г\.\s*([А-Яа-яЁё-]+)/giu;
-  const cityMatches = Array.from(`${entry.title} ${entry.customer} ${entry.description}`.matchAll(cityRegex));
-  const hasForeignCityByGeoRegex = cityMatches.some((match) => {
-    const city = normalizeCyrillic(match[1] ?? '');
+function hasForeignCity(fullText: string): boolean {
+  const allowedCities = MOSCOW_AGGLOMERATION.map((city) => normalizeCyrillic(city));
+  const matches = Array.from(fullText.matchAll(CITY_REGEX));
+
+  for (const match of matches) {
+    const city = normalizeCyrillic(normalizeWhitespace(match[1] ?? ''));
     if (!city) {
-      return false;
+      continue;
     }
 
-    return !MOSCOW_AGGLOMERATION.some((allowed) => {
-      const candidate = normalizeCyrillic(allowed);
-      return city.includes(candidate) || candidate.includes(city);
-    });
-  });
+    const isAllowed = allowedCities.some(
+      (candidate) => city.includes(candidate) || candidate.includes(city)
+    );
+    if (!isAllowed) {
+      return true;
+    }
+  }
 
-  if (hasForeignCityByGeoRegex) {
+  return false;
+}
+
+function calculateRegionalScore(entry: TenderAccumulator): number {
+  let relevanceScore = 0;
+  const fullText = normalizeCyrillic(
+    `${entry.title} ${entry.customer} ${entry.description} ${entry.lawRaw} ${entry.regionText}`
+  );
+
+  const hasPositiveContext = POSITIVE_REGION_MARKERS.some((marker) =>
+    fullText.includes(normalizeCyrillic(marker))
+  );
+  const hasDirectCityHit = MOSCOW_MARKERS.some((marker) =>
+    fullText.includes(normalizeCyrillic(marker))
+  );
+  const hasTargetZip = hasTargetPostalIndex(fullText);
+  const hasPositiveMarker = hasPositiveContext || hasDirectCityHit || hasTargetZip;
+
+  if (hasDirectCityHit) {
+    relevanceScore += 50;
+  }
+
+  const innPrefix = entry.inn?.slice(0, 2) ?? '';
+  if (TARGET_INN_PREFIXES.includes(innPrefix)) {
+    relevanceScore += 50;
+  } else if (innPrefix && !hasPositiveMarker) {
+    relevanceScore -= 3000;
+  }
+
+  if (innPrefix && NON_TARGET_INN_PREFIXES_HARD.includes(innPrefix) && !hasPositiveMarker) {
+    relevanceScore -= 5000;
+  }
+
+  if (hasPositiveContext || hasTargetZip) {
+    relevanceScore += 40;
+  }
+
+  relevanceScore += evaluateZipScore(fullText);
+
+  if (hasForeignCity(fullText)) {
     relevanceScore -= 1000;
   }
 
   const blacklistHit = REGIONAL_BLACKLIST_WORDS.some((word) =>
-    scope.includes(normalizeCyrillic(word))
+    fullText.includes(normalizeCyrillic(word))
   );
 
   if (blacklistHit) {
@@ -937,9 +1158,19 @@ function calculateRelevance(entry: TenderAccumulator, price: number, areaTag: st
   return regionalScore + includeHits * 8 + directionBonus + areaBonus + priceBonus;
 }
 
-function getRejectReason(entry: TenderAccumulator, fileDate?: Date): string | null {
+function getRejectReason(
+  entry: TenderAccumulator,
+  fileDate?: Date,
+  log?: (message: string) => void
+): string | null {
   if (!entry.externalId || !entry.title) {
     return 'missing-core-fields';
+  }
+
+  const numericPrice = Number(parseMoney(entry.priceRaw));
+  if (!Number.isFinite(numericPrice) || numericPrice < MIN_PRICE) {
+    log?.(`[human] reject price-below-threshold: ${entry.externalId} | price=${numericPrice}`);
+    return 'price-below-threshold';
   }
 
   const regionalScore = calculateRegionalScore(entry);
@@ -952,11 +1183,6 @@ function getRejectReason(entry: TenderAccumulator, fileDate?: Date): string | nu
   }
   if (!hasSoftRoofScope(entry)) {
     return 'hard-roof-excluded';
-  }
-
-  const price = parseMoney(entry.priceRaw);
-  if (price < MIN_PRICE) {
-    return 'price-below-threshold';
   }
 
   if (entry.deadlineRaw) {
@@ -974,11 +1200,15 @@ function getRejectReason(entry: TenderAccumulator, fileDate?: Date): string | nu
   return null;
 }
 
-function finalizeTender(entry: TenderAccumulator, fileDate?: Date): {
+function finalizeTender(
+  entry: TenderAccumulator,
+  fileDate?: Date,
+  log?: (message: string) => void
+): {
   tender: EisRawTender | null;
   rejectReason?: string;
 } {
-  const rejectReason = getRejectReason(entry, fileDate);
+  const rejectReason = getRejectReason(entry, fileDate, log);
   if (rejectReason) {
     return {
       tender: null,
@@ -986,7 +1216,7 @@ function finalizeTender(entry: TenderAccumulator, fileDate?: Date): {
     };
   }
 
-  const price = parseMoney(entry.priceRaw);
+  const price = Number(parseMoney(entry.priceRaw));
   const published = parseDate(entry.publishedRaw, fileDate);
   const deadline = entry.deadlineRaw ? parseDate(entry.deadlineRaw, fileDate) : '';
   const areaTag = extractAreaTag(`${entry.title} ${entry.description}`);
