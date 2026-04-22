@@ -29,7 +29,7 @@ const schema = z.object({
   EIS_EXTRACT_METHOD: z.enum(['ftp', 'api', 'human']).default('human'),
   EIS_GOSUSLUGI_TOKEN: z.string().optional(),
   EIS_HUMAN_SESSION_MIN_SECONDS: z.coerce.number().int().positive().default(1200),
-  EIS_HUMAN_SESSION_MAX_SECONDS: z.coerce.number().int().positive().default(2400),
+  EIS_HUMAN_SESSION_MAX_SECONDS: z.coerce.number().int().positive().default(3600),
   EIS_HUMAN_MIN_STEP_DELAY_MS: z.coerce.number().int().positive().default(2500),
   EIS_HUMAN_MAX_STEP_DELAY_MS: z.coerce.number().int().positive().default(15000),
   PARSER_CRON: z.string().default('17 3 */2 * *'),
