@@ -216,4 +216,16 @@
     color: var(--ts-text-secondary);
     white-space: nowrap;
   }
+
+  .unread-dot {
+    width: 8px;
+    height: 8px;
+    min-width: 8px;
+    min-height: 8px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background-color: #3b82f6;
+    margin-left: 12px;
+    align-self: center;
+  }
 }
