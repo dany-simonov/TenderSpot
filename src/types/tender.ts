@@ -3,6 +3,8 @@ export type TenderSource = 'ЕИС 44-ФЗ' | 'ЕИС 223-ФЗ' | 'ROOF.ru' | '�
 
 export interface Tender {
   documentId?: string;
+  createdAt?: string;
+  updatedAt?: string;
   id: string;
   title: string;
   customer: string;
@@ -17,6 +19,7 @@ export interface Tender {
   keywords: string[];
   status: TenderStatus;
   notes: string;
+  isViewed?: boolean;
 }
 
 export type SortField = 'deadline' | 'price' | 'published' | 'title' | 'customer';
