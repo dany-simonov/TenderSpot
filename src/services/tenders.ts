@@ -6,6 +6,8 @@ import { Tender, TenderStatus } from '@/types/tender';
 function parseTenderDocument(document: Models.Document): Tender {
   return {
     documentId: document.$id,
+    createdAt: String(document.$createdAt || ''),
+    updatedAt: String(document.$updatedAt || ''),
     id: String(document.id || document.externalId || document.regNumber || document.$id),
     title: String(document.title || ''),
     customer: String(document.customer || ''),
@@ -20,6 +22,7 @@ function parseTenderDocument(document: Models.Document): Tender {
     keywords: Array.isArray(document.keywords) ? document.keywords.map(String) : [],
     status: (document.status || 'new') as TenderStatus,
     notes: String(document.notes || ''),
+    isViewed: document.isViewed === true,
   };
 }
 
@@ -60,6 +63,20 @@ export async function updateTenderNotes(params: {
     appEnv.tendersCollectionId!,
     params.documentId,
     { notes: params.notes }
+  );
+}
+
+export async function updateTenderViewed(params: {
+  documentId: string;
+  isViewed: boolean;
+}): Promise<void> {
+  assertAppwriteEnv();
+
+  await appwriteDatabases.updateDocument(
+    appEnv.databaseId!,
+    appEnv.tendersCollectionId!,
+    params.documentId,
+    { isViewed: params.isViewed }
   );
 }
 
