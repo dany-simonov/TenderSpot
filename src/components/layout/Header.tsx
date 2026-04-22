@@ -1,10 +1,9 @@
-import { RefreshCw, Sun, Moon } from 'lucide-react';
+import { Sun, Moon } from 'lucide-react';
 import { Theme } from '@/hooks/useTheme';
 import BlueRhombusLogo from '@/components/branding/BlueRhombusLogo';
 
 interface HeaderProps {
   lastSync: string;
-  onRefresh: () => void;
   theme: Theme;
   onToggleTheme: () => void;
   onLogout: () => void;
@@ -25,12 +24,12 @@ function formatSyncTime(iso: string): string {
   return `${day}.${month}.${year}, ${hours}:${minutes}`;
 }
 
-const Header = ({ lastSync, onRefresh, theme, onToggleTheme, onLogout }: HeaderProps) => {
+const Header = ({ lastSync, theme, onToggleTheme, onLogout }: HeaderProps) => {
   const isDark = theme === 'dark';
 
   return (
     <header
-      className="sticky top-0 z-40 flex items-center justify-between px-4 sm:px-6 h-12 pr-24 sm:pr-28 transition-colors relative"
+      className="sticky top-0 z-40 flex items-center justify-between px-4 sm:px-6 h-12 pr-24 sm:pr-28 transition-colors"
       style={{
         backgroundColor: 'var(--ts-surface)',
         borderBottom: '1px solid var(--ts-border)',
@@ -62,16 +61,6 @@ const Header = ({ lastSync, onRefresh, theme, onToggleTheme, onLogout }: HeaderP
           )}
         </button>
 
-        {/* Refresh */}
-        <button
-          onClick={onRefresh}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium btn-outline"
-          style={{ borderRadius: '4px' }}
-          title="Обновить данные"
-        >
-          <RefreshCw size={13} />
-          <span>Обновить</span>
-        </button>
       </div>
 
       <button

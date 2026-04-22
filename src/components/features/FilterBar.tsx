@@ -16,6 +16,8 @@ interface FilterBarProps {
   onStatusFilterChange: (v: TenderStatus | 'all') => void;
   hideNoDeadline: boolean;
   onHideNoDeadlineChange: (v: boolean) => void;
+  onlyNew: boolean;
+  onOnlyNewChange: (v: boolean) => void;
   counts: StatusCount;
 }
 
@@ -42,6 +44,8 @@ const FilterBar = ({
   onStatusFilterChange,
   hideNoDeadline,
   onHideNoDeadlineChange,
+  onlyNew,
+  onOnlyNewChange,
   counts,
 }: FilterBarProps) => {
   return (
@@ -49,7 +53,7 @@ const FilterBar = ({
       className="sticky top-12 z-30 px-4 sm:px-6 py-3 transition-colors"
       style={{ backgroundColor: 'var(--ts-bg)', borderBottom: '1px solid var(--ts-border)' }}
     >
-      {/* Row 1: search + deadline toggle */}
+      {/* Row 1: search + toggles */}
       <div className="flex flex-col sm:flex-row gap-2 mb-3 items-stretch sm:items-center">
         {/* Search */}
         <div className="relative flex-1">
@@ -91,6 +95,23 @@ const FilterBar = ({
             onChange={(e) => onHideNoDeadlineChange(e.target.checked)}
           />
           Скрыть без дедлайна
+        </label>
+
+        <label
+          className="inline-flex items-center gap-2 px-3 py-2 rounded text-sm"
+          style={{
+            backgroundColor: 'var(--ts-surface)',
+            border: '1px solid var(--ts-border)',
+            color: 'var(--ts-text-primary)',
+            borderRadius: '4px',
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={onlyNew}
+            onChange={(e) => onOnlyNewChange(e.target.checked)}
+          />
+          Только новые
         </label>
       </div>
 

@@ -5,6 +5,7 @@ import {
   useTendersQuery,
   useUpdateTenderNotesMutation,
   useUpdateTenderStatusMutation,
+  useUpdateTenderViewedMutation,
 } from '@/hooks/useTenders';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuth } from '@/auth/AuthContext';
@@ -12,19 +13,6 @@ import Header from '@/components/layout/Header';
 import FilterBar from '@/components/features/FilterBar';
 import TenderTable from '@/components/features/TenderTable';
 import TenderDrawer from '@/components/features/TenderDrawer';
-import { useLocalStorage } from '@/hooks/useLocalStorage';
-import { toast } from '@/hooks/use-toast';
-
-function isSameLocalDay(aIso: string, bIso: string): boolean {
-  const a = new Date(aIso);
-  const b = new Date(bIso);
-
-  return (
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate()
-  );
-}
 
 function parseDeadlineForSort(value: string): number | null {
   if (!value) {
@@ -54,20 +42,35 @@ const Index = () => {
     isLoading,
     isError,
     error,
-    refetch,
   } = useTendersQuery();
   const updateStatusMutation = useUpdateTenderStatusMutation();
   const updateNotesMutation = useUpdateTenderNotesMutation();
+  const updateViewedMutation = useUpdateTenderViewedMutation();
 
   useRealtimeTendersSync();
-
-  const [lastSync, setLastSync] = useLocalStorage<string>('tenderspot_last_manual_refresh_at', '');
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<TenderStatus | 'all'>('all');
   const [hideNoDeadline, setHideNoDeadline] = useState(false);
+  const [onlyNew, setOnlyNew] = useState(false);
   const [sort, setSort] = useState<SortState>({ field: 'deadline', dir: 'asc' });
   const [selectedTenderId, setSelectedTenderId] = useState<string | null>(null);
+
+  const lastSync = useMemo(() => {
+    const latestCreatedAt = tenders.reduce<string>((latest, tender) => {
+      if (!tender.createdAt) {
+        return latest;
+      }
+      if (!latest) {
+        return tender.createdAt;
+      }
+      return new Date(tender.createdAt).getTime() > new Date(latest).getTime()
+        ? tender.createdAt
+        : latest;
+    }, '');
+
+    return latestCreatedAt;
+  }, [tenders]);
 
   const selectedTender = useMemo(
     () => (selectedTenderId ? tenders.find((item) => item.id === selectedTenderId) ?? null : null),
@@ -102,6 +105,20 @@ const Index = () => {
       });
     },
     [tenders, updateNotesMutation]
+  );
+
+  const handleMarkViewed = useCallback(
+    (tender: Tender) => {
+      if (!tender.documentId || tender.isViewed === true) {
+        return;
+      }
+
+      updateViewedMutation.mutate({
+        documentId: tender.documentId,
+        isViewed: true,
+      });
+    },
+    [updateViewedMutation]
   );
 
   const handleSort = useCallback(
@@ -139,6 +156,7 @@ const Index = () => {
     return tenders.filter((t) => {
       if (statusFilter !== 'all' && t.status !== statusFilter) return false;
       if (hideNoDeadline && !t.deadline) return false;
+      if (onlyNew && t.isViewed === true) return false;
       if (q) {
         const searchHaystack = [
           t.title,
@@ -157,7 +175,7 @@ const Index = () => {
       }
       return true;
     });
-  }, [tenders, search, statusFilter, hideNoDeadline]);
+  }, [tenders, search, statusFilter, hideNoDeadline, onlyNew]);
 
   const sorted = useMemo(() => {
     if (!sort.field || !sort.dir) {
@@ -195,6 +213,7 @@ const Index = () => {
         : tenders.filter((t) => {
             const q = search.trim().toLowerCase();
             if (hideNoDeadline && !t.deadline) return false;
+          if (onlyNew && t.isViewed === true) return false;
             if (q) {
               const searchHaystack = [
                 t.title,
@@ -220,25 +239,7 @@ const Index = () => {
       submitted: base.filter((t) => t.status === 'submitted').length,
       rejected: base.filter((t) => t.status === 'rejected').length,
     };
-  }, [tenders, filtered, statusFilter, hideNoDeadline, search]);
-
-  const handleRefresh = useCallback(async () => {
-    const nowIso = new Date().toISOString();
-    if (lastSync && isSameLocalDay(lastSync, nowIso)) {
-      toast({
-        title: 'Обновление недоступно',
-        description: `Вы уже обновляли сегодня. Последнее обновление: ${new Date(lastSync).toLocaleString('ru-RU')}`,
-      });
-      return;
-    }
-
-    await refetch();
-    setLastSync(nowIso);
-    toast({
-      title: 'Данные обновлены',
-      description: `Последнее обновление: ${new Date(nowIso).toLocaleString('ru-RU')}`,
-    });
-  }, [lastSync, refetch, setLastSync]);
+  }, [tenders, filtered, statusFilter, hideNoDeadline, onlyNew, search]);
 
   const handleLogout = useCallback(async () => {
     await logout();
@@ -248,7 +249,6 @@ const Index = () => {
     <div className="min-h-screen transition-colors" style={{ backgroundColor: 'var(--ts-bg)' }}>
       <Header
         lastSync={lastSync}
-        onRefresh={handleRefresh}
         theme={theme}
         onToggleTheme={toggleTheme}
         onLogout={handleLogout}
@@ -261,6 +261,8 @@ const Index = () => {
         onStatusFilterChange={setStatusFilter}
         hideNoDeadline={hideNoDeadline}
         onHideNoDeadlineChange={setHideNoDeadline}
+        onlyNew={onlyNew}
+        onOnlyNewChange={setOnlyNew}
         counts={counts}
       />
 
@@ -281,6 +283,7 @@ const Index = () => {
               sort={sort}
               onSort={handleSort}
               onRowClick={handleRowClick}
+              onMarkViewed={handleMarkViewed}
               onStatusChange={handleStatusChange}
             />
           )}

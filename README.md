@@ -15,10 +15,12 @@ The system is designed for recurrent daily ingestion with idempotent persistence
 ## Core Capabilities
 
 - Source ingestion through a modular ETL adapter architecture.
+- Two-stage EIS parsing pipeline (surface scan + deep enrichment).
 - Deterministic duplicate protection at database level.
 - Rule-based relevance scoring for regional and domain accuracy.
 - Price, date, and customer gating aligned with B2B procurement priorities.
 - Realtime-ready UI with workflow statuses and analyst annotations.
+- Viewed/unviewed tracking with optimistic updates and "Only new" focus mode.
 
 ## Architecture Overview
 
@@ -76,11 +78,18 @@ The parser domain is responsible for:
 
 TenderSpot parser follows a structured ETL flow:
 
-1. extraction from EIS result pages;
-2. block-level parsing of tender metadata;
-3. hard reject filters (price, required fields, regional mismatch, expiry);
-4. relevance scoring and ranking;
+1. Stage 1: extraction from EIS result pages and fast block-level candidate filtering;
+2. Stage 2: deep page enrichment by `sourceUrl` with strict INN/ZIP checks;
+3. deterministic reject classification with reason-level logging;
+4. relevance scoring and ranking for final shortlist;
 5. bounded load to Appwrite with deterministic document IDs.
+
+### Two-Stage EIS Pipeline
+
+- Stage 1 keeps only cheap, high-throughput checks (price/date/non-B2B/hard-roof exclusions).
+- Stage 2 performs deterministic deep validation using parsed page content.
+- INN checks use prefix-based rules; ZIP checks use address-context extraction only.
+- Final ETL logs include explicit stage summaries and reject reason distribution.
 
 ### Idempotency Model
 
@@ -97,7 +106,8 @@ This model prevents duplicate growth during repeated executions.
 The parser uses layered filtering:
 
 - source-side narrowing via URL query params;
-- local hard rejects for non-target records;
+- Stage 1 hard rejects for non-target records;
+- Stage 2 deterministic geographic validation (INN and ZIP guillotines);
 - regional scoring penalties and bonuses;
 - post-filter ranking and truncation.
 
@@ -113,6 +123,15 @@ TenderSpot supports four workflow statuses:
 - rejected
 
 Analysts can update status and notes directly from the dashboard. These workflow fields are persisted in Appwrite and preserved across parser reruns.
+
+The dashboard also supports read tracking:
+
+- unread tenders are visually highlighted;
+- opening a row or source link marks a tender as viewed;
+- optimistic frontend mutation updates UI immediately;
+- a dedicated "Only new" filter helps operators process fresh intake faster.
+
+`isViewed` is initialized on document create and is not force-overwritten on updates.
 
 ## Repository Structure
 
@@ -134,6 +153,7 @@ Top-level modules:
 - Prefer idempotent writes over cleanup procedures.
 - Keep reject reasons explicit and measurable.
 - Preserve analyst workflow metadata during data refreshes.
+- Preserve viewed state (`isViewed`) when existing records are updated.
 - Separate extraction logic from UI workflow concerns.
 
 ## Quality and Governance
