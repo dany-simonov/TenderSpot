@@ -84,6 +84,13 @@ export class AppwriteTenderLoader {
       ...payload,
       status: tender.status,
       notes: tender.notes,
+      isViewed: false,
+    };
+
+    const updatePayload = {
+      ...payload,
+      status: tender.status,
+      notes: tender.notes,
     };
 
     try {
@@ -109,7 +116,7 @@ export class AppwriteTenderLoader {
         this.databaseId,
         this.collectionId,
         documentId,
-        createPayload
+        updatePayload
       );
     }
   }
