@@ -24,6 +24,8 @@ export type HumanSession = {
 const DAYS_BACK = 120;
 const MIN_PRICE = 500_000;
 const MAX_TENDERS = 500;
+const MAX_STAGE1_CANDIDATES = 400;
+const MAX_STAGE2_OUTPUT = 100;
 const SEARCH_PAGES_PER_KEYWORD = 15;
 const USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36';
@@ -177,6 +179,7 @@ const POSITIVE_REGION_MARKERS = [
 ];
 
 const TARGET_INN_PREFIXES = ['77', '50', '69'];
+const STAGE2_INN_WHITELIST_PREFIXES = ['77', '97', '99', '50', '90', '69'];
 
 const NON_TARGET_INN_PREFIXES_HARD = [
   '01', '02', '03', '04', '05', '06', '07', '08', '09',
@@ -188,96 +191,6 @@ const NON_TARGET_INN_PREFIXES_HARD = [
   '60', '61', '62', '63', '64', '65', '66', '67', '68',
   '70', '71', '72', '73', '74', '75', '76', '79', '83',
   '86', '87', '89', '91', '92', '93', '94', '95', '96', '97', '98', '99',
-];
-
-const REGIONAL_BLACKLIST_WORDS = [
-  'саратов',
-  'свердловск',
-  'костром',
-  'хабаровск',
-  'ленинград',
-  'краснодар',
-  'красноярск',
-  'владивосток',
-  'ростов',
-  'сахалин',
-  'якут',
-  'курган',
-  'свердловск',
-  'екатеринбург',
-  'екатер',
-  'нижний новгород',
-  'красноярс',
-  'донец',
-  'новосиб',
-  'новокузнецк',
-  'кемерово',
-  'барнаул',
-  'томск',
-  'пенза',
-  'тамбов',
-  'липецк',
-  'брянск',
-  'орел',
-  'кострома',
-  'иваново',
-  'владимир',
-  'тула',
-  'нальчик',
-  'махачкал',
-  'грозный',
-  'симферополь',
-  'севастополь',
-  'ставрополь',
-  'саратов',
-  'астрахань',
-  'пермь',
-  'ижевск',
-  'оренбург',
-  'абакан',
-  'кызыл',
-  'улан-удэ',
-  'чита',
-  'благовещенск',
-  'биробиджан',
-  'петербург',
-  'спб',
-  'хабаровск',
-  'архангельс',
-  'магадан',
-  'уфа',
-  'башкортостан',
-  'казан',
-  'татарстан',
-  'омск',
-  'нижегород',
-  'челябинс',
-  'норильс',
-  'калининград',
-  'ленинградск',
-  'псков',
-  'рязан',
-  'ярослав',
-  'луганс',
-  'тюмен',
-  'краснодар',
-  'чукот',
-  'белгород',
-  'салехард',
-  'магнитогорс',
-  'владивосток',
-  'мурманск',
-  'камчат',
-  'чебоксар',
-  'чуваш',
-  'смоленск',
-  'вольск',
-  'волгоград',
-  'воронеж',
-  'самар',
-  'ростов',
-  'иркутск',
-  'марий эл',
 ];
 
 const CITY_REGEX = /(?:г|город)[.\s]+([а-яё][а-яё\s-]{2,})/gi;
@@ -806,6 +719,188 @@ function extractExternalIdFast(block: string): string {
   return block.match(/\b\d{11,19}\b/)?.[0] ?? '';
 }
 
+function buildSurfaceTenderFromBlock(block: string): {
+  tender: EisRawTender | null;
+  rejectReason?: string;
+} {
+  const $ = load(block);
+  const hrefCandidates = $('a[href]')
+    .map((_i, el) => String($(el).attr('href') || '').trim())
+    .get()
+    .filter(Boolean);
+
+  const preferredHref =
+    hrefCandidates.find((href) => /notice223\/common-info\.html/i.test(href)) ||
+    hrefCandidates.find((href) => /regNumber=\d{8,}/i.test(href)) ||
+    hrefCandidates[0] ||
+    '';
+
+  const externalId =
+    parseRegNumberFromHref(preferredHref) ||
+    hrefCandidates.map((href) => parseRegNumberFromHref(href)).find(Boolean) ||
+    block.match(/\b\d{11,19}\b/)?.[0] ||
+    '';
+  const sourceUrlRaw = toAbsoluteEisUrl(preferredHref);
+
+  const titleRaw =
+    block.match(/registry-entry__header-mid__title[\s\S]*?<a[^>]*>([\s\S]*?)<\/a>/i)?.[1] ??
+    block.match(/<a[^>]*>([\s\S]*?)<\/a>/i)?.[1] ??
+    '';
+  const bodyPreview = stripTags(block);
+  const fallbackTitle = bodyPreview
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 140);
+  const title = stripTags(titleRaw) || fallbackTitle;
+
+  if (!externalId || !title) {
+    return {
+      tender: null,
+      rejectReason: 'missing-core-fields',
+    };
+  }
+
+  const rawPriceFromHtml = extractRawPriceFragment(block);
+  const body = bodyPreview;
+  const price = cleanAndParsePrice(rawPriceFromHtml || body);
+  const published = parseDateFromText(body);
+  const deadline = extractDeadlineFromBlock(block);
+  const customer = extractCustomerFromBlock(block);
+  const inn = body.match(/\b\d{10}\b/)?.[0] ?? '';
+  const description = `${body} ${extractAreaTag(`${title} ${body}`)}`.trim();
+
+  return {
+    tender: {
+      externalId: externalId.trim(),
+      title: title.trim(),
+      description: description.trim(),
+      regionCode: body.includes('московск') ? '50' : '77',
+      customer: customer.trim(),
+      inn: inn.trim(),
+      price: Number.isFinite(price) ? price : 0,
+      published,
+      deadline,
+      source: 'ЕИС 223-ФЗ',
+      sourceUrl: sourceUrlRaw.trim(),
+      relevanceScore: 0,
+    },
+  };
+}
+
+function countSoftRoofHitsInTitle(title: string): number {
+  const normalizedTitle = normalize(title);
+  return SOFT_ROOF_INCLUDE.filter((keyword) => normalizedTitle.includes(normalize(keyword))).length;
+}
+
+function calculateStage1ProxyScore(tender: EisRawTender): number {
+  const includeHits = countSoftRoofHitsInTitle(tender.title);
+  const priceBonus = Math.min(12, Math.max(0, Math.floor(tender.price / 500_000)));
+  return includeHits * 10 + priceBonus;
+}
+
+function extractAddressField(fullText: string, labelPattern: RegExp): string {
+  const match = fullText.match(labelPattern);
+  return normalizeWhitespace(match?.[1] ?? '');
+}
+
+function parseStage2PageData(html: string): {
+  fullText: string;
+  inn: string;
+  kpp: string;
+  legalAddress: string;
+  postalAddress: string;
+  deliveryPlace: string;
+  addressContext: string;
+  zipCodes: string[];
+  validZipCodes: string[];
+  placeLine: string;
+} {
+  const fullText = normalizeWhitespace(htmlToText(html));
+  const inn =
+    fullText.match(/\bИНН(?:\s+заказчика|\/КПП)?\s*[:№]?\s*(\d{10})\b/i)?.[1] ??
+    fullText.match(/\bИНН\D{0,30}(\d{10})\b/i)?.[1] ??
+    '';
+  const kpp = fullText.match(/\bКПП\s*[:]?\s*(\d{9})\b/i)?.[1] ?? '';
+
+  const legalAddress = extractAddressField(
+    fullText,
+    /(?:место\s+нахождения|юридичес(?:кий|кого)\s+адрес)\s*[:\-]?\s*([\s\S]{0,260}?)(?=(?:почтов(?:ый|ого)\s+адрес|место\s+поставки|место\s+выполнения\s+работ|место\s+оказания\s+услуг|адрес\s+объекта|инн|кпп|огрн|телефон|e-?mail|$))/i
+  );
+  const postalAddress = extractAddressField(
+    fullText,
+    /(?:почтов(?:ый|ого)\s+адрес|адрес\s+для\s+корреспонденции)\s*[:\-]?\s*([\s\S]{0,260}?)(?=(?:место\s+нахождения|место\s+поставки|место\s+выполнения\s+работ|место\s+оказания\s+услуг|адрес\s+объекта|инн|кпп|огрн|телефон|e-?mail|$))/i
+  );
+  const deliveryPlace = extractAddressField(
+    fullText,
+    /(?:место\s+поставки(?:\s+товаров)?|место\s+выполнения\s+работ|место\s+оказания\s+услуг|адрес\s+объекта)\s*[:\-]?\s*([\s\S]{0,320}?)(?=(?:место\s+нахождения|почтов(?:ый|ого)\s+адрес|инн|кпп|огрн|телефон|e-?mail|$))/i
+  );
+
+  const addressContext = normalizeWhitespace(
+    `${legalAddress} ${postalAddress} ${deliveryPlace}`
+  );
+
+  const zipCodes = Array.from(addressContext.matchAll(/\b(\d{6})\b/g)).map((match) => match[1]);
+  const validZipCodes = Array.from(
+    new Set(zipCodes.filter((zip) => /^[1-9]\d{5}$/.test(zip)))
+  );
+
+  const placeLine = fullText.match(/[Мм]есто\s+(?:нахождения|выполнения|рассмотрения)[^\n]{0,300}/)?.[0] ?? '';
+
+  return {
+    fullText,
+    inn,
+    kpp,
+    legalAddress,
+    postalAddress,
+    deliveryPlace,
+    addressContext,
+    zipCodes,
+    validZipCodes,
+    placeLine,
+  };
+}
+
+function hasTargetZipPrefix(zipCodes: string[]): boolean {
+  return zipCodes.some((zip) => /^(10|11|12|14|17)/.test(zip));
+}
+
+function hasForeignZipPrefix(zipCodes: string[]): boolean {
+  return zipCodes.some((zip) => !/^(10|11|12|14|17)/.test(zip));
+}
+
+function isStage2Residential(text: string): boolean {
+  return [' мкд', 'многоквартирн', 'жилой дом', 'жилкомсервис'].some((marker) =>
+    normalize(text).includes(normalize(marker))
+  );
+}
+
+function buildEnrichedTender(base: EisRawTender, pageText: string, realInn: string, placeLine: string): EisRawTender {
+  const enrichedEntry: TenderAccumulator = {
+    externalId: base.externalId,
+    sourceUrlRaw: base.sourceUrl,
+    title: base.title,
+    description: `${base.description} ${placeLine}`.trim(),
+    regionCode: base.regionCode,
+    customer: base.customer,
+    inn: realInn || base.inn,
+    priceRaw: String(base.price),
+    publishedRaw: base.published,
+    deadlineRaw: base.deadline,
+    lawRaw: pageText,
+    regionText: pageText,
+  };
+
+  const areaTag = extractAreaTag(`${enrichedEntry.title} ${enrichedEntry.description}`);
+  const description = `${enrichedEntry.description.trim()}${areaTag}`.trim();
+
+  return {
+    ...base,
+    description,
+    inn: (realInn || base.inn).trim(),
+    relevanceScore: calculateRelevance(enrichedEntry, base.price, areaTag),
+  };
+}
+
 async function browseResultsHumanLike(args: {
   keywords: string[];
   regionCodes: string[];
@@ -815,13 +910,13 @@ async function browseResultsHumanLike(args: {
   onTender?: (tender: EisRawTender) => Promise<void>;
 }): Promise<EisRawTender[]> {
   const session = await loadSession();
-  const collected: EisRawTender[] = [];
-  const emittedIds = new Set<string>();
+  const stage1Candidates: EisRawTender[] = [];
+  const stage2Enriched: EisRawTender[] = [];
   const processedIds = new Set<string>();
+  const emittedIds = new Set<string>();
 
-  const stats = {
+  const stage1Stats = {
     scannedBlocks: 0,
-    parsedBlocks: 0,
     rejectedByReason: {} as Record<string, number>,
   };
 
@@ -835,35 +930,27 @@ async function browseResultsHumanLike(args: {
   const targetDuration = randomInt(minDuration, maxDuration);
 
   log(
-    `[human] session started; target duration ${Math.round(targetDuration / 1000)} sec, keywords=${args.keywords.join(', ')}`
+    `[stage-1] session started; target duration ${Math.round(targetDuration / 1000)} sec, keywords=${args.keywords.join(', ')}`
   );
 
   try {
-    log('[human] open homepage');
+    log('[stage-1] open homepage');
     await humanFetch(session, EIS_HOME_URL);
 
     for (const keyword of args.keywords) {
-      const perKeywordStats = {
-        scannedBlocks: 0,
-        parsedBlocks: 0,
-        matched: 0,
-        rejectedByReason: {} as Record<string, number>,
-      };
       let stopAfterKeyword = false;
-      let rejectOnlyPriceForKeyword = true;
 
-      log(`[human] keyword pass: ${keyword}`);
+      log(`[stage-1] keyword pass: ${keyword}`);
       for (let page = 1; page <= SEARCH_PAGES_PER_KEYWORD; page += 1) {
         const url = buildSearchUrl(keyword, page, args.regionCodes);
-        log(`[human] fetch page ${page}: ${url}`);
+        log(`[stage-1] fetch page ${page}: ${url}`);
         const html = await humanFetch(session, url, EIS_HOME_URL);
         const blocks = extractBlocks(html);
-        stats.scannedBlocks += blocks.length;
-        perKeywordStats.scannedBlocks += blocks.length;
-        log(`[human] found blocks on page ${page}: ${blocks.length}`);
+        stage1Stats.scannedBlocks += blocks.length;
+        log(`[stage-1] found blocks on page ${page}: ${blocks.length}`);
 
         if (blocks.length === 0) {
-          log(`[human] 0 blocks found on page ${page}. Exiting pagination for this keyword.`);
+          log(`[stage-1] 0 blocks found on page ${page}. Exiting pagination for this keyword.`);
           break;
         }
 
@@ -876,103 +963,190 @@ async function browseResultsHumanLike(args: {
             processedIds.add(quickExternalId);
           }
 
-          const parsed = buildTenderFromBlock(block, log);
-          stats.parsedBlocks += 1;
-          perKeywordStats.parsedBlocks += 1;
-
-          if (parsed.rejectReason) {
-            stats.rejectedByReason[parsed.rejectReason] =
-              (stats.rejectedByReason[parsed.rejectReason] ?? 0) + 1;
-            perKeywordStats.rejectedByReason[parsed.rejectReason] =
-              (perKeywordStats.rejectedByReason[parsed.rejectReason] ?? 0) + 1;
-
-            if (parsed.rejectReason !== 'price-below-threshold') {
-              rejectOnlyPriceForKeyword = false;
-            }
-          }
-
+          const parsed = buildSurfaceTenderFromBlock(block);
           const tender = parsed.tender;
           if (!tender) {
+            const reason = parsed.rejectReason ?? 'unknown-stage1';
+            stage1Stats.rejectedByReason[reason] = (stage1Stats.rejectedByReason[reason] ?? 0) + 1;
             continue;
           }
 
-          if (!tender.deadline) {
-            log(`[human] deadline not found: ${tender.externalId}`);
+          let rejectReason: string | null = null;
+
+          if (!tender.externalId || !tender.title) {
+            rejectReason = 'missing-core-fields';
+          } else if (tender.price < MIN_PRICE) {
+            rejectReason = 'price-below-threshold';
+            log(`[stage-1] reject price-below-threshold: ${tender.externalId} | price=${tender.price}`);
+          } else if (isExpiredDate(tender.deadline)) {
+            rejectReason = 'expired';
+          } else if (!isRecentDate(tender.published, args.fromDate, args.toDate)) {
+            rejectReason = 'published-out-of-range';
+          } else if (containsAny(`${tender.title} ${tender.description}`, NON_B2B_CUSTOMERS)) {
+            rejectReason = 'non-b2b-customer';
+          } else if (containsAny(`${tender.title} ${tender.description}`, HARD_ROOF_EXCLUDE)) {
+            rejectReason = 'hard-roof-excluded';
           }
 
-          collected.push(tender);
-          perKeywordStats.matched += 1;
-
-          if (!emittedIds.has(tender.externalId)) {
-            emittedIds.add(tender.externalId);
-            if (args.onTender) {
-              await args.onTender(tender);
-            }
+          if (rejectReason) {
+            stage1Stats.rejectedByReason[rejectReason] =
+              (stage1Stats.rejectedByReason[rejectReason] ?? 0) + 1;
+            continue;
           }
 
-          log(
-            `[human] matched #${collected.length}: ${tender.externalId} | price=${Math.round(tender.price)} | region=${tender.regionCode}`
-          );
+          stage1Candidates.push(tender);
+          log(`[stage-1] pass: ${tender.externalId} | price=${Math.round(tender.price)}`);
 
-          if (collected.length >= MAX_TENDERS) {
-            log('[human] stop by MAX_TENDERS limit');
+          if (stage1Candidates.length >= MAX_STAGE1_CANDIDATES) {
+            log('[stage-1] stop by MAX_STAGE1_CANDIDATES limit');
             stopAfterKeyword = true;
             break;
           }
         }
 
-        if (
-          page >= 3 &&
-          perKeywordStats.matched === 0 &&
-          perKeywordStats.parsedBlocks > 0 &&
-          rejectOnlyPriceForKeyword
-        ) {
-          log(
-            `[human] low-signal early-exit: keyword="${keyword}", page=${page}, reason=price-only-rejections`
-          );
-          break;
-        }
-
-        if (collected.length >= MAX_TENDERS) {
+        if (stage1Candidates.length >= MAX_STAGE1_CANDIDATES) {
           stopAfterKeyword = true;
           break;
         }
 
         if (Date.now() - sessionStart >= targetDuration) {
-          log('[human] stop by target session duration');
+          log('[stage-1] stop by target session duration');
           stopAfterKeyword = true;
           break;
         }
       }
 
-      log(
-        `[human] keyword summary: keyword="${keyword}", scannedBlocks=${perKeywordStats.scannedBlocks}, parsedBlocks=${perKeywordStats.parsedBlocks}, matched=${perKeywordStats.matched}, rejected=${JSON.stringify(perKeywordStats.rejectedByReason)}`
-      );
-
-      if (stopAfterKeyword || collected.length >= MAX_TENDERS || Date.now() - sessionStart >= targetDuration) {
+      if (
+        stopAfterKeyword ||
+        stage1Candidates.length >= MAX_STAGE1_CANDIDATES ||
+        Date.now() - sessionStart >= targetDuration
+      ) {
         break;
       }
     }
+
+    const stage1Deduped = Array.from(
+      stage1Candidates.reduce((acc, tender) => {
+        const current = acc.get(tender.externalId);
+        const candidateProxy = calculateStage1ProxyScore(tender);
+        const currentProxy = current ? calculateStage1ProxyScore(current) : -1;
+        if (!current || candidateProxy >= currentProxy) {
+          acc.set(tender.externalId, {
+            ...tender,
+            relevanceScore: candidateProxy,
+          });
+        }
+        return acc;
+      }, new Map<string, EisRawTender>()).values()
+    )
+      .sort((a, b) => b.relevanceScore - a.relevanceScore)
+      .slice(0, MAX_STAGE1_CANDIDATES);
+
+    log(
+      `[stage-1] done: scannedBlocks=${stage1Stats.scannedBlocks}, passed=${stage1Deduped.length}, rejected=${JSON.stringify(stage1Stats.rejectedByReason)}`
+    );
+
+    const stage2Stats = {
+      passed: 0,
+      rejectedByReason: {} as Record<string, number>,
+    };
+
+    let consecutiveFetchErrors = 0;
+    for (const candidate of stage1Deduped) {
+      if (stage2Enriched.length >= MAX_STAGE2_OUTPUT) {
+        break;
+      }
+
+      if (Date.now() - sessionStart >= targetDuration) {
+        log('[stage-2] stop by target session duration');
+        break;
+      }
+
+      try {
+        await humanPause();
+        const pageHtml = await humanFetch(session, candidate.sourceUrl, EIS_RESULTS_URL);
+        const pageData = parseStage2PageData(pageHtml);
+
+        const innPrefix = pageData.inn.slice(0, 2);
+        const hasBadInnPrefix =
+          Boolean(innPrefix) &&
+          NON_TARGET_INN_PREFIXES_HARD.includes(innPrefix) &&
+          !STAGE2_INN_WHITELIST_PREFIXES.includes(innPrefix);
+
+        if (pageData.inn && hasBadInnPrefix) {
+          log(`[stage-2] reject stage2-bad-inn: ${candidate.externalId} | inn=${pageData.inn} | prefix=${innPrefix}`);
+          stage2Stats.rejectedByReason['stage2-bad-inn'] =
+            (stage2Stats.rejectedByReason['stage2-bad-inn'] ?? 0) + 1;
+          continue;
+        }
+
+        if (
+          pageData.validZipCodes.length > 0 &&
+          hasForeignZipPrefix(pageData.validZipCodes) &&
+          !hasTargetZipPrefix(pageData.validZipCodes)
+        ) {
+          log(
+            `[stage-2] reject stage2-bad-zip: ${candidate.externalId} | found_zips=${JSON.stringify(pageData.validZipCodes)}`
+          );
+          stage2Stats.rejectedByReason['stage2-bad-zip'] =
+            (stage2Stats.rejectedByReason['stage2-bad-zip'] ?? 0) + 1;
+          continue;
+        }
+
+        const residentialScope = `${candidate.title} ${candidate.description} ${pageData.fullText}`;
+        if (isStage2Residential(residentialScope)) {
+          log(`[stage-2] reject stage2-residential: ${candidate.externalId}`);
+          stage2Stats.rejectedByReason['stage2-residential'] =
+            (stage2Stats.rejectedByReason['stage2-residential'] ?? 0) + 1;
+          continue;
+        }
+
+        const enriched = buildEnrichedTender(candidate, pageData.fullText, pageData.inn, pageData.placeLine);
+        stage2Enriched.push(enriched);
+        stage2Stats.passed += 1;
+
+        if (!emittedIds.has(enriched.externalId)) {
+          emittedIds.add(enriched.externalId);
+          if (args.onTender) {
+            await args.onTender(enriched);
+          }
+        }
+
+        consecutiveFetchErrors = 0;
+        log(`[stage-2] pass: ${enriched.externalId} | inn=${pageData.inn || enriched.inn} | score=${enriched.relevanceScore}`);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        consecutiveFetchErrors += 1;
+        log(`[stage-2] fetch-error: ${candidate.externalId} | ${message}`);
+
+        if (consecutiveFetchErrors >= 3) {
+          log('[stage-2] stop by 3 consecutive fetch errors');
+          break;
+        }
+      }
+    }
+
+    log(
+      `[etl] Stage 2 summary: passed=${stage2Stats.passed}, rejected=${JSON.stringify(stage2Stats.rejectedByReason)}`
+    );
+
+    log(
+      `[etl] Pipeline summary: scannedBlocks=${stage1Stats.scannedBlocks}, passedStage1=${stage1Deduped.length}, passedStage2=${stage2Enriched.length}. Loaded to DB: ${stage2Enriched.length}.`
+    );
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     await stateStore.reportError(message);
-    log(`[human] error: ${message}`);
+    log(`[stage-1] error: ${message}`);
     throw error;
   } finally {
     await saveSession(session);
-    log('[human] session cookies saved');
+    log('[stage-1] session cookies saved');
   }
 
-  const unique = new Map(collected.map((item) => [item.externalId, item]));
+  const unique = new Map(stage2Enriched.map((item) => [item.externalId, item]));
   const deduped = Array.from(unique.values())
-    .filter((row) => isRecentDate(row.published, args.fromDate, args.toDate))
     .sort((a, b) => b.relevanceScore - a.relevanceScore)
-    .slice(0, MAX_TENDERS);
-
-  log(
-    `[human] done: scannedBlocks=${stats.scannedBlocks}, parsedBlocks=${stats.parsedBlocks}, matched=${collected.length}, deduped=${deduped.length}`
-  );
-  log(`[human] rejected stats: ${JSON.stringify(stats.rejectedByReason)}`);
+    .slice(0, MAX_STAGE2_OUTPUT);
 
   return deduped;
 }
@@ -1134,14 +1308,6 @@ function calculateRegionalScore(entry: TenderAccumulator): number {
   relevanceScore += evaluateZipScore(fullText);
 
   if (hasForeignCity(fullText)) {
-    relevanceScore -= 1000;
-  }
-
-  const blacklistHit = REGIONAL_BLACKLIST_WORDS.some((word) =>
-    fullText.includes(normalizeCyrillic(word))
-  );
-
-  if (blacklistHit) {
     relevanceScore -= 1000;
   }
 
