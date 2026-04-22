@@ -6,6 +6,7 @@ import {
   getTenderRealtimeChannel,
   updateTenderNotes,
   updateTenderStatus,
+  updateTenderViewed,
 } from '@/services/tenders';
 import { Tender, TenderStatus } from '@/types/tender';
 
@@ -72,6 +73,34 @@ export function useUpdateTenderNotesMutation() {
       queryClient.setQueryData<Tender[]>(tendersQueryKey, (current = []) =>
         current.map((tender) =>
           tender.documentId === documentId ? { ...tender, notes } : tender
+        )
+      );
+
+      return { previous };
+    },
+    onError: (_error, _variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(tendersQueryKey, context.previous);
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: tendersQueryKey });
+    },
+  });
+}
+
+export function useUpdateTenderViewedMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: updateTenderViewed,
+    onMutate: async ({ documentId, isViewed }: { documentId: string; isViewed: boolean }) => {
+      await queryClient.cancelQueries({ queryKey: tendersQueryKey });
+      const previous = queryClient.getQueryData<Tender[]>(tendersQueryKey) || [];
+
+      queryClient.setQueryData<Tender[]>(tendersQueryKey, (current = []) =>
+        current.map((tender) =>
+          tender.documentId === documentId ? { ...tender, isViewed } : tender
         )
       );
 
