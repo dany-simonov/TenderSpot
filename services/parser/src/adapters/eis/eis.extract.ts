@@ -26,7 +26,7 @@ const MIN_PRICE = 500_000;
 const MAX_TENDERS = 500;
 const MAX_STAGE1_CANDIDATES = 400;
 const MAX_STAGE2_OUTPUT = 100;
-const SEARCH_PAGES_PER_KEYWORD = 15;
+const SEARCH_PAGES_PER_KEYWORD = 20;
 const USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36';
 const EIS_HOME_URL = 'https://zakupki.gov.ru/';
@@ -115,7 +115,6 @@ const NON_B2B_CUSTOMERS = [
   'лицей',
   'университет',
   'академия',
-  'институт',
   'общежитие',
 ];
 
@@ -803,6 +802,63 @@ function extractAddressField(fullText: string, labelPattern: RegExp): string {
   return normalizeWhitespace(match?.[1] ?? '');
 }
 
+function extractInnFromText(fullText: string): string {
+  const innWithContext = /(?:^|[^0-9A-Za-zА-Яа-яЁё])ИНН[^0-9]{0,40}([0-9][0-9\s]{8,20})/gi;
+  const candidates = Array.from(fullText.matchAll(innWithContext))
+    .map((match) => match[1])
+    .map((value) => value.replace(/\D/g, ''))
+    .filter((value) => value.length === 10 || value.length === 12);
+
+  if (candidates.length > 0) {
+    return candidates[0];
+  }
+
+  const directMatch = fullText.match(/ИНН\s*[:№]?\s*(\d{10}|\d{12})/i)?.[1];
+  return directMatch ?? '';
+}
+
+function extractFieldFromHtml(html: string, labelPattern: RegExp): string {
+  const $ = load(html);
+  const elements = $('td, th, div, span, p');
+  for (const element of elements.toArray()) {
+    const rawText = normalizeWhitespace($(element).text());
+    if (!rawText) {
+      continue;
+    }
+
+    if (labelPattern.test(rawText)) {
+      const withoutLabel = normalizeWhitespace(rawText.replace(labelPattern, '').replace(/^[:\-]\s*/, ''));
+      if (withoutLabel.length >= 6) {
+        return withoutLabel;
+      }
+
+      const siblingText = normalizeWhitespace($(element).next().text());
+      if (siblingText.length >= 6) {
+        return siblingText;
+      }
+
+      const parentNext = normalizeWhitespace($(element).parent().next().text());
+      if (parentNext.length >= 6) {
+        return parentNext;
+      }
+    }
+  }
+
+  return '';
+}
+
+function truncateLogValue(value: string, maxLength = 180): string {
+  if (value.length <= maxLength) {
+    return value;
+  }
+  return `${value.slice(0, maxLength)}…`;
+}
+
+function extractInnDebugSnippet(fullText: string): string {
+  const match = fullText.match(/.{0,80}ИНН.{0,80}/i);
+  return truncateLogValue(normalizeWhitespace(match?.[0] ?? ''), 180);
+}
+
 function parseStage2PageData(html: string): {
   fullText: string;
   inn: string;
@@ -813,13 +869,11 @@ function parseStage2PageData(html: string): {
   addressContext: string;
   zipCodes: string[];
   validZipCodes: string[];
+  deliveryZipCodes: string[];
   placeLine: string;
 } {
   const fullText = normalizeWhitespace(htmlToText(html));
-  const inn =
-    fullText.match(/\bИНН(?:\s+заказчика|\/КПП)?\s*[:№]?\s*(\d{10})\b/i)?.[1] ??
-    fullText.match(/\bИНН\D{0,30}(\d{10})\b/i)?.[1] ??
-    '';
+  const inn = extractInnFromText(fullText);
   const kpp = fullText.match(/\bКПП\s*[:]?\s*(\d{9})\b/i)?.[1] ?? '';
 
   const legalAddress = extractAddressField(
@@ -830,10 +884,18 @@ function parseStage2PageData(html: string): {
     fullText,
     /(?:почтов(?:ый|ого)\s+адрес|адрес\s+для\s+корреспонденции)\s*[:\-]?\s*([\s\S]{0,260}?)(?=(?:место\s+нахождения|место\s+поставки|место\s+выполнения\s+работ|место\s+оказания\s+услуг|адрес\s+объекта|инн|кпп|огрн|телефон|e-?mail|$))/i
   );
-  const deliveryPlace = extractAddressField(
+  const deliveryLabelPattern =
+    /(?:адрес\s+места\s+поставки|место\s+поставки(?:\s+товар(?:ов|а))?(?:\s*\([^)]*\))?(?:\s*,\s*выполнения\s+работ)?(?:\s*,\s*оказания\s+услуг)?|место\s+выполнения\s+работ(?:\s*\([^)]*\))?(?:\s*,\s*оказания\s+услуг)?|место\s+оказания\s+услуг|адрес\s+объекта)/i;
+  let deliveryPlace = extractAddressField(
     fullText,
-    /(?:место\s+поставки(?:\s+товаров)?|место\s+выполнения\s+работ|место\s+оказания\s+услуг|адрес\s+объекта)\s*[:\-]?\s*([\s\S]{0,320}?)(?=(?:место\s+нахождения|почтов(?:ый|ого)\s+адрес|инн|кпп|огрн|телефон|e-?mail|$))/i
+    new RegExp(
+      `${deliveryLabelPattern.source}\\s*[:\\-]?\\s*([\\s\\S]{0,320}?)(?=(?:место\\s+нахождения|юридичес(?:кий|кого)\\s+адрес|почтов(?:ый|ого)\\s+адрес|инн|кпп|огрн|телефон|e-?mail|$))`,
+      'i'
+    )
   );
+  if (!deliveryPlace) {
+    deliveryPlace = extractFieldFromHtml(html, deliveryLabelPattern);
+  }
 
   const addressContext = normalizeWhitespace(
     `${legalAddress} ${postalAddress} ${deliveryPlace}`
@@ -843,6 +905,11 @@ function parseStage2PageData(html: string): {
   const validZipCodes = Array.from(
     new Set(zipCodes.filter((zip) => /^[1-9]\d{5}$/.test(zip)))
   );
+  const deliveryZipCodes = Array.from(
+    new Set(
+      Array.from(deliveryPlace.matchAll(/\b(\d{6})\b/g)).map((match) => match[1])
+    )
+  ).filter((zip) => /^[1-9]\d{5}$/.test(zip));
 
   const placeLine = fullText.match(/[Мм]есто\s+(?:нахождения|выполнения|рассмотрения)[^\n]{0,300}/)?.[0] ?? '';
 
@@ -856,6 +923,7 @@ function parseStage2PageData(html: string): {
     addressContext,
     zipCodes,
     validZipCodes,
+    deliveryZipCodes,
     placeLine,
   };
 }
@@ -1067,6 +1135,13 @@ async function browseResultsHumanLike(args: {
         const pageHtml = await humanFetch(session, candidate.sourceUrl, EIS_RESULTS_URL);
         const pageData = parseStage2PageData(pageHtml);
 
+        if (!pageData.inn) {
+          const innSnippet = extractInnDebugSnippet(pageData.fullText);
+          log(
+            `[stage-2] inn-diagnostics: ${candidate.externalId} | inn-empty | snippet=${JSON.stringify(innSnippet)}`
+          );
+        }
+
         const innPrefix = pageData.inn.slice(0, 2);
         const hasBadInnPrefix =
           Boolean(innPrefix) &&
@@ -1080,7 +1155,23 @@ async function browseResultsHumanLike(args: {
           continue;
         }
 
+        const hasTargetDeliveryZip =
+          pageData.deliveryZipCodes.length > 0 &&
+          hasTargetZipPrefix(pageData.deliveryZipCodes);
+
         if (
+          pageData.deliveryPlace ||
+          pageData.deliveryZipCodes.length > 0 ||
+          pageData.validZipCodes.length > 0
+        ) {
+          const deliverySnippet = truncateLogValue(pageData.deliveryPlace, 180);
+          log(
+            `[stage-2] address-diagnostics: ${candidate.externalId} | delivery=${JSON.stringify(deliverySnippet)} | delivery_zips=${JSON.stringify(pageData.deliveryZipCodes)} | all_zips=${JSON.stringify(pageData.validZipCodes)} | delivery_target=${hasTargetDeliveryZip}`
+          );
+        }
+
+        if (
+          !hasTargetDeliveryZip &&
           pageData.validZipCodes.length > 0 &&
           hasForeignZipPrefix(pageData.validZipCodes) &&
           !hasTargetZipPrefix(pageData.validZipCodes)
