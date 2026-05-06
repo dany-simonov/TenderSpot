@@ -1,9 +1,15 @@
 import { Sun, Moon } from 'lucide-react';
 import { Theme } from '@/hooks/useTheme';
 import BlueRhombusLogo from '@/components/branding/BlueRhombusLogo';
+import { ParserStatus } from '@/services/parser';
 
 interface HeaderProps {
   lastSync: string;
+  parserStatus?: ParserStatus | null;
+  parserStatusError?: string | null;
+  parserStatusLoading?: boolean;
+  parserRunPending?: boolean;
+  onRunParser?: () => void;
   theme: Theme;
   onToggleTheme: () => void;
   onLogout: () => void;
@@ -24,8 +30,51 @@ function formatSyncTime(iso: string): string {
   return `${day}.${month}.${year}, ${hours}:${minutes}`;
 }
 
-const Header = ({ lastSync, theme, onToggleTheme, onLogout }: HeaderProps) => {
+function formatShortTime(iso: string | null): string {
+  if (!iso) {
+    return '—';
+  }
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) {
+    return '—';
+  }
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const hours = String(d.getHours()).padStart(2, '0');
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  return `${day}.${month} ${hours}:${minutes}`;
+}
+
+const Header = ({
+  lastSync,
+  parserStatus,
+  parserStatusError,
+  parserStatusLoading,
+  parserRunPending,
+  onRunParser,
+  theme,
+  onToggleTheme,
+  onLogout,
+}: HeaderProps) => {
   const isDark = theme === 'dark';
+  const isRunning = parserStatus?.isRunning || false;
+  const canRun = parserStatus?.canRun === true;
+  const runDisabled = !onRunParser || parserStatusLoading || parserRunPending || isRunning || !canRun;
+
+  let parserHint = 'Парсер: нет данных';
+  if (parserStatusLoading) {
+    parserHint = 'Парсер: проверяем статус...';
+  } else if (parserStatusError) {
+    parserHint = 'Парсер: недоступен';
+  } else if (parserStatus) {
+    if (parserStatus.isRunning) {
+      parserHint = 'Парсер: выполняется';
+    } else if (parserStatus.canRun) {
+      parserHint = 'Парсер: готов к запуску';
+    } else if (parserStatus.nextRunAt) {
+      parserHint = `Парсер: доступен ${formatShortTime(parserStatus.nextRunAt)}`;
+    }
+  }
 
   return (
     <header
@@ -45,6 +94,23 @@ const Header = ({ lastSync, theme, onToggleTheme, onLogout }: HeaderProps) => {
         >
           Последнее обновление: {formatSyncTime(lastSync)}
         </span>
+
+        <div className="hidden sm:flex flex-col items-end leading-tight text-[10px] mr-1">
+          <span style={{ color: 'var(--ts-text-secondary)' }}>{parserHint}</span>
+          <span style={{ color: 'var(--ts-text-secondary)' }}>
+            Последний запуск: {formatShortTime(parserStatus?.lastRunAt ?? null)}
+          </span>
+        </div>
+
+        <button
+          onClick={onRunParser}
+          disabled={runDisabled}
+          className="flex items-center justify-center h-8 px-3 rounded btn-outline text-xs"
+          style={{ borderRadius: '4px', opacity: runDisabled ? 0.6 : 1 }}
+          title="Запустить парсер (доступно 1 раз в день)"
+        >
+          {parserRunPending || isRunning ? 'Запуск...' : 'Обновить'}
+        </button>
 
         {/* Theme toggle */}
         <button
