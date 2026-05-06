@@ -10,6 +10,14 @@ interface ParserStateStoreConfig {
 
 const SESSION_KEY = 'eis_human_session';
 const LAST_ERROR_KEY = 'eis_human_last_error';
+const LAST_RUN_KEY = 'parser_last_run';
+
+export interface ParserRunState {
+  startedAt?: string;
+  finishedAt?: string;
+  status?: 'running' | 'success' | 'failed';
+  error?: string;
+}
 
 export class ParserStateStore {
   private readonly databases: Databases;
@@ -45,6 +53,36 @@ export class ParserStateStore {
   public async reportError(message: string): Promise<void> {
     await this.upsertByKey(LAST_ERROR_KEY, {
       message,
+      updatedAt: new Date().toISOString(),
+    });
+  }
+
+  public async loadRunState(): Promise<ParserRunState | null> {
+    const payload = await this.getPayloadByKey(LAST_RUN_KEY);
+    if (!payload) {
+      return null;
+    }
+
+    const state: ParserRunState = {};
+    if (typeof payload.startedAt === 'string') {
+      state.startedAt = payload.startedAt;
+    }
+    if (typeof payload.finishedAt === 'string') {
+      state.finishedAt = payload.finishedAt;
+    }
+    if (payload.status === 'running' || payload.status === 'success' || payload.status === 'failed') {
+      state.status = payload.status;
+    }
+    if (typeof payload.error === 'string') {
+      state.error = payload.error;
+    }
+
+    return state;
+  }
+
+  public async saveRunState(state: ParserRunState): Promise<void> {
+    await this.upsertByKey(LAST_RUN_KEY, {
+      ...state,
       updatedAt: new Date().toISOString(),
     });
   }
