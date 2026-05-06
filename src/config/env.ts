@@ -8,6 +8,11 @@ const requiredEnv = {
   inviteTokensCollectionId: import.meta.env.VITE_APPWRITE_INVITE_TOKENS_COLLECTION_ID,
 };
 
+const optionalEnv = {
+  parserApiUrl: import.meta.env.VITE_PARSER_API_URL,
+  parserSyncSecret: import.meta.env.VITE_PARSER_SYNC_SECRET,
+};
+
 const missing = Object.entries(requiredEnv)
   .filter(([, value]) => !value)
   .map(([key]) => key);
@@ -17,7 +22,7 @@ if (missing.length > 0) {
   console.warn(`Missing Appwrite environment variables: ${missing.join(', ')}`);
 }
 
-export const appEnv = requiredEnv;
+export const appEnv = { ...requiredEnv, ...optionalEnv };
 
 export function assertAppwriteEnv(): void {
   if (missing.length > 0) {
