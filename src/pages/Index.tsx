@@ -7,12 +7,14 @@ import {
   useUpdateTenderStatusMutation,
   useUpdateTenderViewedMutation,
 } from '@/hooks/useTenders';
+import { useParserStatusQuery, useRunParserMutation } from '@/hooks/useParserSync';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuth } from '@/auth/AuthContext';
 import Header from '@/components/layout/Header';
 import FilterBar from '@/components/features/FilterBar';
 import TenderTable from '@/components/features/TenderTable';
 import TenderDrawer from '@/components/features/TenderDrawer';
+import { toast } from 'sonner';
 
 function parseDeadlineForSort(value: string): number | null {
   if (!value) {
@@ -48,6 +50,13 @@ const Index = () => {
   const updateViewedMutation = useUpdateTenderViewedMutation();
 
   useRealtimeTendersSync();
+
+  const {
+    data: parserStatus,
+    isLoading: parserStatusLoading,
+    error: parserStatusError,
+  } = useParserStatusQuery();
+  const runParserMutation = useRunParserMutation();
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<TenderStatus | 'all'>('all');
@@ -151,6 +160,18 @@ const Index = () => {
     setSelectedTenderId(null);
   }, []);
 
+  const handleRunParser = useCallback(() => {
+    runParserMutation.mutate(undefined, {
+      onSuccess: (response) => {
+        const loaded = response.result?.loaded ?? 0;
+        toast.success(`Парсер запущен. Загружено: ${loaded}`);
+      },
+      onError: (error) => {
+        toast.error(error instanceof Error ? error.message : 'Ошибка запуска парсера.');
+      },
+    });
+  }, [runParserMutation]);
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return tenders.filter((t) => {
@@ -249,6 +270,13 @@ const Index = () => {
     <div className="min-h-screen transition-colors" style={{ backgroundColor: 'var(--ts-bg)' }}>
       <Header
         lastSync={lastSync}
+        parserStatus={parserStatus ?? null}
+        parserStatusLoading={parserStatusLoading}
+        parserStatusError={
+          parserStatusError instanceof Error ? parserStatusError.message : null
+        }
+        parserRunPending={runParserMutation.isPending}
+        onRunParser={handleRunParser}
         theme={theme}
         onToggleTheme={toggleTheme}
         onLogout={handleLogout}
