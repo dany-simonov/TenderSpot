@@ -185,6 +185,7 @@ const Index = () => {
 
     const baselineCount = parserStartCount ?? tenders.length;
     let active = true;
+    const timeoutMs = 11 * 60 * 1000;
 
     const interval = setInterval(async () => {
       try {
@@ -202,9 +203,19 @@ const Index = () => {
       }
     }, 12_000);
 
+    const timeout = setTimeout(() => {
+      if (!active) {
+        return;
+      }
+      setParserLocked(false);
+      setParserStartCount(null);
+      toast.info('Парсер завершен без новых записей.');
+    }, timeoutMs);
+
     return () => {
       active = false;
       clearInterval(interval);
+      clearTimeout(timeout);
     };
   }, [parserLocked, parserStartCount, tenders.length, queryClient]);
 
