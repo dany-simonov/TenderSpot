@@ -15,6 +15,7 @@ import FilterBar from '@/components/features/FilterBar';
 import TenderTable from '@/components/features/TenderTable';
 import TenderDrawer from '@/components/features/TenderDrawer';
 import { toast } from 'sonner';
+import { runParser } from '@/services/parser';
 import { fetchTenders } from '@/services/tenders';
 import { tendersQueryKey } from '@/hooks/useTenders';
 
@@ -166,16 +167,16 @@ const Index = () => {
 
     setParserLaunching(true);
     try {
-      await queryClient.invalidateQueries({ queryKey: tendersQueryKey });
+      await runParser();
       setParserLocked(true);
       setParserStartCount(tenders.length);
-      toast.success('Список обновляется...');
+      toast.success('Парсер запущен. Обновляем список...');
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Ошибка обновления.');
+      toast.error(error instanceof Error ? error.message : 'Ошибка запуска парсера.');
     } finally {
       setParserLaunching(false);
     }
-  }, [parserLaunching, parserLocked, tenders.length, queryClient]);
+  }, [parserLaunching, parserLocked, tenders.length]);
 
   useEffect(() => {
     if (!parserLocked) {

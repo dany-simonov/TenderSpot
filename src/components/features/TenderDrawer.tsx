@@ -19,17 +19,33 @@ const STATUS_OPTIONS: Array<{ value: TenderStatus; label: string }> = [
 
 const STATUS_COLORS: Record<TenderStatus, string> = {
   new: '#388BFD',
-  wip: '#D29922',
-  submitted: '#2EA043',
+  wip: '#2EA043',
+  submitted: '#D29922',
   rejected: '#6E7681',
 };
 
 const STATUS_BG: Record<TenderStatus, string> = {
   new: 'rgba(56,139,253,0.12)',
-  wip: 'rgba(210,153,34,0.12)',
-  submitted: 'rgba(46,160,67,0.12)',
+  wip: 'rgba(46,160,67,0.12)',
+  submitted: 'rgba(210,153,34,0.12)',
   rejected: 'rgba(110,118,129,0.12)',
 };
+
+function isOverdue(deadlineIsoDate: string): boolean {
+  if (!deadlineIsoDate) {
+    return false;
+  }
+
+  const deadline = new Date(deadlineIsoDate);
+  if (Number.isNaN(deadline.getTime())) {
+    return false;
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  deadline.setHours(0, 0, 0, 0);
+  return deadline.getTime() < today.getTime();
+}
 
 const SOURCE_COLORS: Record<string, string> = {
   'ЕИС 44-ФЗ': '#388BFD',
@@ -37,14 +53,6 @@ const SOURCE_COLORS: Record<string, string> = {
   'ROOF.ru': '#2EA043',
   'КомТендер': '#D29922',
 };
-
-function daysUntil(dateStr: string): number {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const deadline = new Date(dateStr);
-  deadline.setHours(0, 0, 0, 0);
-  return Math.ceil((deadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-}
 
 const TenderDrawer = ({ tender, onClose, onStatusChange, onNotesChange }: TenderDrawerProps) => {
   const drawerRef = useRef<HTMLDivElement>(null);
@@ -68,9 +76,7 @@ const TenderDrawer = ({ tender, onClose, onStatusChange, onNotesChange }: Tender
 
   if (!tender) return null;
 
-  const days = daysUntil(tender.deadline);
-  const isUrgent = days <= 4;
-  const isHighPrice = tender.price >= 1000000;
+  const overdue = isOverdue(tender.deadline);
 
   const handleBackdropClick = (e: React.MouseEvent) => {
     if (drawerRef.current && !drawerRef.current.contains(e.target as Node)) {
@@ -144,7 +150,7 @@ const TenderDrawer = ({ tender, onClose, onStatusChange, onNotesChange }: Tender
                 <p className="text-xs" style={{ color: 'var(--ts-text-secondary)' }}>НМЦ</p>
                 <p
                   className="text-base font-semibold tabular-nums"
-                  style={{ color: isHighPrice ? 'var(--ts-price-high)' : 'var(--ts-text-primary)' }}
+                  style={{ color: 'var(--ts-text-primary)' }}
                 >
                   {formatPrice(tender.price)}
                 </p>
@@ -156,23 +162,16 @@ const TenderDrawer = ({ tender, onClose, onStatusChange, onNotesChange }: Tender
               <div>
                 <p className="text-xs" style={{ color: 'var(--ts-text-secondary)' }}>Даты</p>
                 <p className="text-sm" style={{ color: 'var(--ts-text-primary)' }}>
-                  Опубликован: {formatDate(tender.published)}
+                  Выложено: {formatDate(tender.published)}
                 </p>
                 <p
                   className="text-sm"
-                  style={{ color: isUrgent ? 'var(--ts-urgent)' : 'var(--ts-text-primary)' }}
+                  style={{
+                    color: overdue ? '#ef4444' : 'var(--ts-text-primary)',
+                    textDecoration: overdue ? 'underline' : 'none',
+                  }}
                 >
                   Дедлайн: {formatDate(tender.deadline)}
-                  {isUrgent && days > 0 && (
-                    <span className="ml-1 text-xs" style={{ color: 'var(--ts-urgent)' }}>
-                      (осталось {days} дн.)
-                    </span>
-                  )}
-                  {days <= 0 && (
-                    <span className="ml-1 text-xs" style={{ color: 'var(--ts-urgent)' }}>
-                      (просрочен)
-                    </span>
-                  )}
                 </p>
               </div>
             </div>
