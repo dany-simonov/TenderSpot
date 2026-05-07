@@ -1,15 +1,6 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { fetchParserStatus, runParser } from '@/services/parser';
-
-export const parserStatusQueryKey = ['parser-status'];
-
-export function useParserStatusQuery() {
-  return useQuery({
-    queryKey: parserStatusQueryKey,
-    queryFn: fetchParserStatus,
-    refetchInterval: 60_000,
-  });
-}
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { runParser } from '@/services/parser';
+import { tendersQueryKey } from '@/hooks/useTenders';
 
 export function useRunParserMutation() {
   const queryClient = useQueryClient();
@@ -17,7 +8,7 @@ export function useRunParserMutation() {
   return useMutation({
     mutationFn: runParser,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: parserStatusQueryKey });
+      queryClient.invalidateQueries({ queryKey: tendersQueryKey });
     },
   });
 }
