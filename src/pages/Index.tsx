@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Tender, TenderStatus, SortField, SortState } from '@/types/tender';
 import {
@@ -63,7 +63,15 @@ const Index = () => {
   const [selectedTenderId, setSelectedTenderId] = useState<string | null>(null);
   const [parserLaunching, setParserLaunching] = useState(false);
   const [parserLocked, setParserLocked] = useState(false);
-  const [parserStartCount, setParserStartCount] = useState<number | null>(null);
+  const baselineCountRef = useRef<number | null>(null);
+  const pollingActiveRef = useRef(false);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const tendersCountRef = useRef(0);
+
+  useEffect(() => {
+    tendersCountRef.current = tenders.length;
+  }, [tenders.length]);
 
   const lastSync = useMemo(() => {
     const latestCreatedAt = tenders.reduce<string>((latest, tender) => {
@@ -169,7 +177,7 @@ const Index = () => {
     try {
       await runParser();
       setParserLocked(true);
-      setParserStartCount(tenders.length);
+      baselineCountRef.current = tenders.length;
       toast.success('Парсер запущен. Обновляем список...');
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Ошибка запуска парсера.');
@@ -179,23 +187,37 @@ const Index = () => {
   }, [parserLaunching, parserLocked, tenders.length]);
 
   useEffect(() => {
+    const stopPolling = () => {
+      pollingActiveRef.current = false;
+      baselineCountRef.current = null;
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+    };
+
     if (!parserLocked) {
+      stopPolling();
       return;
     }
 
-    const baselineCount = parserStartCount ?? tenders.length;
-    let active = true;
+    if (pollingActiveRef.current) {
+      return;
+    }
+
+    pollingActiveRef.current = true;
+    const baselineCount = baselineCountRef.current ?? tendersCountRef.current;
     const timeoutMs = 11 * 60 * 1000;
 
-    const interval = setInterval(async () => {
+    intervalRef.current = setInterval(async () => {
       try {
         const latest = await fetchTenders();
-        if (!active) {
-          return;
-        }
         if (latest.length !== baselineCount) {
           setParserLocked(false);
-          setParserStartCount(null);
           queryClient.invalidateQueries({ queryKey: tendersQueryKey });
         }
       } catch {
@@ -203,21 +225,15 @@ const Index = () => {
       }
     }, 12_000);
 
-    const timeout = setTimeout(() => {
-      if (!active) {
-        return;
-      }
+    timeoutRef.current = setTimeout(() => {
       setParserLocked(false);
-      setParserStartCount(null);
       toast.info('Парсер завершен без новых записей.');
     }, timeoutMs);
 
     return () => {
-      active = false;
-      clearInterval(interval);
-      clearTimeout(timeout);
+      stopPolling();
     };
-  }, [parserLocked, parserStartCount, tenders.length, queryClient]);
+  }, [parserLocked, queryClient]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();

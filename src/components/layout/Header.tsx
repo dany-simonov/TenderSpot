@@ -65,12 +65,6 @@ const Header = ({
           style={{ borderRadius: '4px', opacity: runDisabled ? 0.6 : 1 }}
           title="Запустить парсер (доступно 1 раз в день)"
         >
-          {(parserRunPending || parserRunLocked) && (
-            <span
-              className="mr-2 inline-flex h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent"
-              aria-hidden="true"
-            />
-          )}
           {parserRunPending ? 'Запуск...' : parserRunLocked ? 'Запущено...' : 'Обновить'}
         </button>
 
