@@ -5,6 +5,7 @@ import BlueRhombusLogo from '@/components/branding/BlueRhombusLogo';
 interface HeaderProps {
   lastSync: string;
   parserRunPending?: boolean;
+  parserRunLocked?: boolean;
   onRunParser?: () => void;
   theme: Theme;
   onToggleTheme: () => void;
@@ -29,13 +30,14 @@ function formatSyncTime(iso: string): string {
 const Header = ({
   lastSync,
   parserRunPending,
+  parserRunLocked,
   onRunParser,
   theme,
   onToggleTheme,
   onLogout,
 }: HeaderProps) => {
   const isDark = theme === 'dark';
-  const runDisabled = !onRunParser || parserRunPending;
+  const runDisabled = !onRunParser || parserRunPending || parserRunLocked;
 
   return (
     <header
@@ -63,7 +65,7 @@ const Header = ({
           style={{ borderRadius: '4px', opacity: runDisabled ? 0.6 : 1 }}
           title="Запустить парсер (доступно 1 раз в день)"
         >
-          {parserRunPending ? 'Запуск...' : 'Обновить'}
+          {parserRunPending ? 'Запуск...' : parserRunLocked ? 'Запущено...' : 'Обновить'}
         </button>
 
         {/* Theme toggle */}

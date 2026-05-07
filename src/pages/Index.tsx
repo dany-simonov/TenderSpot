@@ -1,4 +1,5 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Tender, TenderStatus, SortField, SortState } from '@/types/tender';
 import {
   useRealtimeTendersSync,
@@ -7,7 +8,6 @@ import {
   useUpdateTenderStatusMutation,
   useUpdateTenderViewedMutation,
 } from '@/hooks/useTenders';
-import { useRunParserMutation } from '@/hooks/useParserSync';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuth } from '@/auth/AuthContext';
 import Header from '@/components/layout/Header';
@@ -15,6 +15,9 @@ import FilterBar from '@/components/features/FilterBar';
 import TenderTable from '@/components/features/TenderTable';
 import TenderDrawer from '@/components/features/TenderDrawer';
 import { toast } from 'sonner';
+import { runParser } from '@/services/parser';
+import { fetchTenders } from '@/services/tenders';
+import { tendersQueryKey } from '@/hooks/useTenders';
 
 function parseDeadlineForSort(value: string): number | null {
   if (!value) {
@@ -48,10 +51,9 @@ const Index = () => {
   const updateStatusMutation = useUpdateTenderStatusMutation();
   const updateNotesMutation = useUpdateTenderNotesMutation();
   const updateViewedMutation = useUpdateTenderViewedMutation();
+  const queryClient = useQueryClient();
 
   useRealtimeTendersSync();
-
-  const runParserMutation = useRunParserMutation();
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<TenderStatus | 'all'>('all');
@@ -59,6 +61,9 @@ const Index = () => {
   const [onlyNew, setOnlyNew] = useState(false);
   const [sort, setSort] = useState<SortState>({ field: 'deadline', dir: 'asc' });
   const [selectedTenderId, setSelectedTenderId] = useState<string | null>(null);
+  const [parserLaunching, setParserLaunching] = useState(false);
+  const [parserLocked, setParserLocked] = useState(false);
+  const [parserStartCount, setParserStartCount] = useState<number | null>(null);
 
   const lastSync = useMemo(() => {
     const latestCreatedAt = tenders.reduce<string>((latest, tender) => {
@@ -155,16 +160,53 @@ const Index = () => {
     setSelectedTenderId(null);
   }, []);
 
-  const handleRunParser = useCallback(() => {
-    runParserMutation.mutate(undefined, {
-      onSuccess: () => {
-        toast.success('Парсер запущен. Обновляем список...');
-      },
-      onError: (error) => {
-        toast.error(error instanceof Error ? error.message : 'Ошибка запуска парсера.');
-      },
-    });
-  }, [runParserMutation]);
+  const handleRunParser = useCallback(async () => {
+    if (parserLaunching || parserLocked) {
+      return;
+    }
+
+    setParserLaunching(true);
+    try {
+      await runParser();
+      setParserLocked(true);
+      setParserStartCount(tenders.length);
+      toast.success('Парсер запущен. Обновляем список...');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Ошибка запуска парсера.');
+    } finally {
+      setParserLaunching(false);
+    }
+  }, [parserLaunching, parserLocked, tenders.length]);
+
+  useEffect(() => {
+    if (!parserLocked) {
+      return;
+    }
+
+    const baselineCount = parserStartCount ?? tenders.length;
+    let active = true;
+
+    const interval = setInterval(async () => {
+      try {
+        const latest = await fetchTenders();
+        if (!active) {
+          return;
+        }
+        if (latest.length !== baselineCount) {
+          setParserLocked(false);
+          setParserStartCount(null);
+          queryClient.invalidateQueries({ queryKey: tendersQueryKey });
+        }
+      } catch {
+        // Ignore polling errors to keep UI responsive.
+      }
+    }, 12_000);
+
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
+  }, [parserLocked, parserStartCount, tenders.length, queryClient]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -264,7 +306,8 @@ const Index = () => {
     <div className="min-h-screen transition-colors" style={{ backgroundColor: 'var(--ts-bg)' }}>
       <Header
         lastSync={lastSync}
-        parserRunPending={runParserMutation.isPending}
+        parserRunPending={parserLaunching}
+        parserRunLocked={parserLocked}
         onRunParser={handleRunParser}
         theme={theme}
         onToggleTheme={toggleTheme}

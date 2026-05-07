@@ -7,5 +7,5 @@ export async function runParser() {
     throw new Error('Appwrite function ID is not configured.');
   }
 
-  return appwriteFunctions.createExecution(functionId);
+  return appwriteFunctions.createExecution(functionId, '', true);
 }
