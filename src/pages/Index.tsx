@@ -7,7 +7,7 @@ import {
   useUpdateTenderStatusMutation,
   useUpdateTenderViewedMutation,
 } from '@/hooks/useTenders';
-import { useParserStatusQuery, useRunParserMutation } from '@/hooks/useParserSync';
+import { useRunParserMutation } from '@/hooks/useParserSync';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuth } from '@/auth/AuthContext';
 import Header from '@/components/layout/Header';
@@ -51,11 +51,6 @@ const Index = () => {
 
   useRealtimeTendersSync();
 
-  const {
-    data: parserStatus,
-    isLoading: parserStatusLoading,
-    error: parserStatusError,
-  } = useParserStatusQuery();
   const runParserMutation = useRunParserMutation();
 
   const [search, setSearch] = useState('');
@@ -162,9 +157,8 @@ const Index = () => {
 
   const handleRunParser = useCallback(() => {
     runParserMutation.mutate(undefined, {
-      onSuccess: (response) => {
-        const loaded = response.result?.loaded ?? 0;
-        toast.success(`Парсер запущен. Загружено: ${loaded}`);
+      onSuccess: () => {
+        toast.success('Парсер запущен. Обновляем список...');
       },
       onError: (error) => {
         toast.error(error instanceof Error ? error.message : 'Ошибка запуска парсера.');
@@ -270,11 +264,6 @@ const Index = () => {
     <div className="min-h-screen transition-colors" style={{ backgroundColor: 'var(--ts-bg)' }}>
       <Header
         lastSync={lastSync}
-        parserStatus={parserStatus ?? null}
-        parserStatusLoading={parserStatusLoading}
-        parserStatusError={
-          parserStatusError instanceof Error ? parserStatusError.message : null
-        }
         parserRunPending={runParserMutation.isPending}
         onRunParser={handleRunParser}
         theme={theme}
