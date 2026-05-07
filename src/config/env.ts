@@ -11,6 +11,7 @@ const requiredEnv = {
 const optionalEnv = {
   parserApiUrl: import.meta.env.VITE_PARSER_API_URL,
   parserSyncSecret: import.meta.env.VITE_PARSER_SYNC_SECRET,
+  appwriteFunctionId: import.meta.env.VITE_APPWRITE_FUNCTION_ID,
 };
 
 const missing = Object.entries(requiredEnv)

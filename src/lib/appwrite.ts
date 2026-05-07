@@ -1,4 +1,4 @@
-import { Account, Client, Databases } from 'appwrite';
+import { Account, Client, Databases, Functions } from 'appwrite';
 import { appEnv } from '@/config/env';
 
 export const appwriteClient = new Client()
@@ -7,3 +7,4 @@ export const appwriteClient = new Client()
 
 export const appwriteAccount = new Account(appwriteClient);
 export const appwriteDatabases = new Databases(appwriteClient);
+export const appwriteFunctions = new Functions(appwriteClient);
