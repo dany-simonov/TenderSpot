@@ -7,7 +7,6 @@ interface TenderTableProps {
   sort: SortState;
   onSort: (field: SortField) => void;
   onRowClick: (tender: Tender) => void;
-  onMarkViewed: (tender: Tender) => void;
   onStatusChange: (id: string, status: TenderStatus) => void;
 }
 
@@ -27,7 +26,6 @@ const TenderTable = ({
   sort,
   onSort,
   onRowClick,
-  onMarkViewed,
   onStatusChange,
 }: TenderTableProps) => {
   const SortIcon = ({ field }: { field: SortField }) => {
@@ -96,7 +94,6 @@ const TenderTable = ({
                 tender={tender}
                 index={i + 1}
                 onRowClick={onRowClick}
-                onMarkViewed={onMarkViewed}
                 onStatusChange={onStatusChange}
               />
             ))

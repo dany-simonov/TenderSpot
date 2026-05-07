@@ -41,8 +41,6 @@ export class EisSourceAdapter implements TenderSourceAdapter {
   public readonly sourceName = 'EIS';
 
   public async extract(context: ExtractContext): Promise<NormalizedTender[]> {
-    context.log?.('[eis.adapter] start extraction');
-
     const rows = await extractAndFilterEis({
       method: context.method,
       keywords: context.keywords,
@@ -50,16 +48,7 @@ export class EisSourceAdapter implements TenderSourceAdapter {
       fromDate: context.fromDate,
       toDate: context.toDate,
       gosuslugiToken: context.gosuslugiToken,
-      log: context.log,
-      onTender: async (raw) => {
-        if (!context.onTenderExtracted) {
-          return;
-        }
-        await context.onTenderExtracted(mapToNormalizedTender(raw));
-      },
     });
-
-    context.log?.(`[eis.adapter] extracted rows after filter: ${rows.length}`);
 
     return rows.map(mapToNormalizedTender);
   }

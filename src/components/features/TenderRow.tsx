@@ -5,7 +5,6 @@ interface TenderRowProps {
   tender: Tender;
   index: number;
   onRowClick: (tender: Tender) => void;
-  onMarkViewed: (tender: Tender) => void;
   onStatusChange: (id: string, status: TenderStatus) => void;
 }
 
@@ -65,9 +64,8 @@ const STATUS_BG: Record<TenderStatus, string> = {
   rejected: 'rgba(110,118,129,0.12)',
 };
 
-const TenderRow = ({ tender, index, onRowClick, onMarkViewed, onStatusChange }: TenderRowProps) => {
+const TenderRow = ({ tender, index, onRowClick, onStatusChange }: TenderRowProps) => {
   const isRejected = tender.status === 'rejected';
-  const isUnread = !tender.isViewed;
   const overdue = isOverdue(tender.deadline);
   const customerLabel = tender.title || tender.description || '—';
   const workTypeLabel = tender.customer || '—';
@@ -79,21 +77,11 @@ const TenderRow = ({ tender, index, onRowClick, onMarkViewed, onStatusChange }: 
 
   const handleLinkClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (isUnread) {
-      onMarkViewed(tender);
-    }
-  };
-
-  const handleRowClick = () => {
-    if (isUnread) {
-      onMarkViewed(tender);
-    }
-    onRowClick(tender);
   };
 
   return (
     <tr
-      onClick={handleRowClick}
+      onClick={() => onRowClick(tender)}
       className="cursor-pointer transition-colors"
       style={{
         opacity: isRejected ? 0.45 : 1,
@@ -112,22 +100,13 @@ const TenderRow = ({ tender, index, onRowClick, onMarkViewed, onStatusChange }: 
         className="px-3 py-0 text-xs text-right select-none"
         style={{ color: 'var(--ts-text-secondary)', width: '40px', height: '44px' }}
       >
-        <span className="inline-flex items-center justify-end gap-1.5 w-full">
-          {isUnread ? (
-            <span
-              aria-label="Новый тендер"
-              title="Новый тендер"
-              className="unread-dot"
-            />
-          ) : null}
-          <span>{index}</span>
-        </span>
+        {index}
       </td>
 
       {/* Customer */}
       <td className="px-3 py-0" style={{ maxWidth: '240px', height: '44px' }}>
         <div
-          className={`text-sm truncate ${isUnread ? 'font-semibold' : 'font-medium'}`}
+          className="text-sm font-medium truncate"
           title={customerLabel}
           style={{ color: 'var(--ts-text-primary)' }}
         >
@@ -141,7 +120,7 @@ const TenderRow = ({ tender, index, onRowClick, onMarkViewed, onStatusChange }: 
         style={{ maxWidth: '150px', height: '44px' }}
       >
         <div
-          className={`text-sm truncate ${isUnread ? 'font-semibold' : ''}`}
+          className="text-sm truncate"
           title={workTypeLabel}
           style={{ color: 'var(--ts-text-secondary)' }}
         >

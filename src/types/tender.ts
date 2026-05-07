@@ -3,12 +3,9 @@ export type TenderSource = 'ЕИС 44-ФЗ' | 'ЕИС 223-ФЗ' | 'ROOF.ru' | '�
 
 export interface Tender {
   documentId?: string;
-  createdAt?: string;
-  updatedAt?: string;
   id: string;
   title: string;
   customer: string;
-  regionCode: string;
   inn: string;
   price: number;
   published: string; // YYYY-MM-DD
@@ -19,15 +16,14 @@ export interface Tender {
   keywords: string[];
   status: TenderStatus;
   notes: string;
-  isViewed?: boolean;
 }
 
 export type SortField = 'deadline' | 'price' | 'published' | 'title' | 'customer';
 export type SortDir = 'asc' | 'desc';
 
 export interface SortState {
-  field: SortField | null;
-  dir: SortDir | null;
+  field: SortField;
+  dir: SortDir;
 }
 
 export const STATUS_LABELS: Record<TenderStatus, string> = {
@@ -37,3 +33,10 @@ export const STATUS_LABELS: Record<TenderStatus, string> = {
   rejected: 'Отказ',
 };
 
+export const SOURCE_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: 'all', label: 'Все источники' },
+  { value: 'ЕИС 44-ФЗ', label: 'ЕИС (44-ФЗ)' },
+  { value: 'ЕИС 223-ФЗ', label: 'ЕИС (223-ФЗ)' },
+  { value: 'ROOF.ru', label: 'ROOF.ru' },
+  { value: 'КомТендер', label: 'КомТендер' },
+];

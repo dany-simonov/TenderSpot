@@ -1,4 +1,4 @@
-import { AppwriteException, Client, Databases, ID, Query } from 'node-appwrite';
+import { Client, Databases, ID, Query } from 'node-appwrite';
 import { NormalizedTender } from '../core/source-adapter';
 
 interface AppwriteLoaderConfig {
@@ -25,48 +25,20 @@ export class AppwriteTenderLoader {
     this.collectionId = config.collectionId;
   }
 
-  public async cleanExpiredTenders(log?: (message: string) => void): Promise<number> {
-    const PAGE_LIMIT = 100;
-    let deleted = 0;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const cutoffIso = today.toISOString();
-
-    while (true) {
-      const page = await this.databases.listDocuments(this.databaseId, this.collectionId, [
-        Query.lessThan('deadline', cutoffIso),
-        Query.limit(PAGE_LIMIT),
-        Query.orderAsc('$id'),
-      ]);
-
-      if (page.documents.length === 0) {
-        break;
-      }
-
-      for (const doc of page.documents) {
-        await this.databases.deleteDocument(this.databaseId, this.collectionId, doc.$id);
-        deleted += 1;
-      }
-    }
-
-    log?.(`[auto-clean] Удалено ${deleted} просроченных тендеров из БД.`);
-    return deleted;
-  }
-
   public async upsertMany(tenders: NormalizedTender[]): Promise<void> {
     for (const tender of tenders) {
       await this.upsertOne(tender);
     }
   }
 
-  public async upsertOne(tender: NormalizedTender): Promise<void> {
-    const documentId = String(tender.externalId).trim();
-    if (!documentId) {
-      throw new Error('Cannot upsert tender without externalId');
-    }
+  private async upsertOne(tender: NormalizedTender): Promise<void> {
+    const existing = await this.databases.listDocuments(this.databaseId, this.collectionId, [
+      Query.equal('externalId', tender.externalId),
+      Query.limit(1),
+    ]);
 
     const payload = {
-      id: tender.externalId,
+      externalId: tender.externalId,
       title: tender.title,
       customer: tender.customer,
       inn: tender.inn,
@@ -78,46 +50,20 @@ export class AppwriteTenderLoader {
       description: tender.description,
       keywords: tender.keywords,
       regionCode: tender.regionCode,
-    };
-
-    const createPayload = {
-      ...payload,
-      status: tender.status,
-      notes: tender.notes,
-      isViewed: false,
-    };
-
-    const updatePayload = {
-      ...payload,
       status: tender.status,
       notes: tender.notes,
     };
 
-    try {
-      await this.databases.createDocument(
-        this.databaseId,
-        this.collectionId,
-        ID.custom(documentId),
-        createPayload
-      );
-    } catch (error) {
-      const code =
-        error instanceof AppwriteException
-          ? error.code
-          : typeof (error as { code?: unknown })?.code === 'number'
-            ? ((error as { code: number }).code as number)
-            : undefined;
-
-      if (code !== 409) {
-        throw error;
-      }
-
+    if (existing.total > 0) {
       await this.databases.updateDocument(
         this.databaseId,
         this.collectionId,
-        documentId,
-        updatePayload
+        existing.documents[0].$id,
+        payload
       );
+      return;
     }
+
+    await this.databases.createDocument(this.databaseId, this.collectionId, ID.unique(), payload);
   }
 }

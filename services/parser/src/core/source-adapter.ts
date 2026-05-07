@@ -1,4 +1,4 @@
-export type ExtractMethod = 'ftp' | 'api' | 'human';
+export type ExtractMethod = 'ftp' | 'api';
 
 export interface ExtractContext {
   keywords: string[];
@@ -7,8 +7,6 @@ export interface ExtractContext {
   toDate?: string;
   method: ExtractMethod;
   gosuslugiToken?: string;
-  onTenderExtracted?: (tender: NormalizedTender) => Promise<void>;
-  log?: (message: string) => void;
 }
 
 export interface NormalizedTender {
