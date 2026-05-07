@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useRef } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { appwriteClient } from '@/lib/appwrite';
 import {
   fetchTenders,
@@ -13,41 +13,13 @@ import { Tender, TenderStatus } from '@/types/tender';
 export const tendersQueryKey = ['tenders'];
 
 export function useTendersQuery() {
-  const [data, setData] = useState<Tender[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-  const initialLoadRef = useRef(true);
+  const { data = [], isLoading, isError, error, refetch } = useQuery({
+    queryKey: tendersQueryKey,
+    queryFn: fetchTenders,
+    staleTime: 1000 * 60 * 5,
+  });
 
-  const refetch = useCallback(async () => {
-    try {
-      if (initialLoadRef.current) {
-        setIsLoading(true);
-      }
-      setError(null);
-      const items = await fetchTenders();
-      setData(items);
-      return items;
-    } catch (err) {
-      const nextError = err instanceof Error ? err : new Error('Не удалось загрузить тендеры.');
-      setError(nextError);
-      return null;
-    } finally {
-      initialLoadRef.current = false;
-      setIsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    refetch();
-  }, [refetch]);
-
-  return {
-    data,
-    isLoading,
-    isError: Boolean(error),
-    error,
-    refetch,
-  };
+  return { data, isLoading, isError, error, refetch };
 }
 
 export function useRealtimeTendersSync(onChange?: () => void) {
@@ -58,11 +30,17 @@ export function useRealtimeTendersSync(onChange?: () => void) {
   }, [onChange]);
 
   useEffect(() => {
+    let timeoutId: ReturnType<typeof setTimeout>;
+
     const unsubscribe = appwriteClient.subscribe(getTenderRealtimeChannel(), () => {
-      onChangeRef.current?.();
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        onChangeRef.current?.();
+      }, 2000);
     });
 
     return () => {
+      clearTimeout(timeoutId);
       unsubscribe();
     };
   }, []);
