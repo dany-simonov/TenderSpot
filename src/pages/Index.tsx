@@ -1,5 +1,4 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
 import { Tender, TenderStatus, SortField, SortState } from '@/types/tender';
 import {
   useRealtimeTendersSync,
@@ -16,8 +15,6 @@ import TenderTable from '@/components/features/TenderTable';
 import TenderDrawer from '@/components/features/TenderDrawer';
 import { toast } from 'sonner';
 import { runParser } from '@/services/parser';
-import { fetchTenders } from '@/services/tenders';
-import { tendersQueryKey } from '@/hooks/useTenders';
 
 function parseDeadlineForSort(value: string): number | null {
   if (!value) {
@@ -47,13 +44,13 @@ const Index = () => {
     isLoading,
     isError,
     error,
+    refetch: refetchTenders,
   } = useTendersQuery();
   const updateStatusMutation = useUpdateTenderStatusMutation();
   const updateNotesMutation = useUpdateTenderNotesMutation();
   const updateViewedMutation = useUpdateTenderViewedMutation();
-  const queryClient = useQueryClient();
 
-  useRealtimeTendersSync();
+  useRealtimeTendersSync(refetchTenders);
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<TenderStatus | 'all'>('all');
@@ -215,10 +212,9 @@ const Index = () => {
 
     intervalRef.current = setInterval(async () => {
       try {
-        const latest = await fetchTenders();
-        if (latest.length !== baselineCount) {
+        const latest = await refetchTenders();
+        if (latest && latest.length !== baselineCount) {
           setParserLocked(false);
-          queryClient.invalidateQueries({ queryKey: tendersQueryKey });
         }
       } catch {
         // Ignore polling errors to keep UI responsive.
@@ -233,7 +229,7 @@ const Index = () => {
     return () => {
       stopPolling();
     };
-  }, [parserLocked, queryClient]);
+  }, [parserLocked, refetchTenders, tenders.length]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();

@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { appwriteClient } from '@/lib/appwrite';
 import {
   fetchTenders,
@@ -13,23 +13,53 @@ import { Tender, TenderStatus } from '@/types/tender';
 export const tendersQueryKey = ['tenders'];
 
 export function useTendersQuery() {
-  return useQuery({
-    queryKey: tendersQueryKey,
-    queryFn: fetchTenders,
-  });
-}
+  const [data, setData] = useState<Tender[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+  const initialLoadRef = useRef(true);
 
-export function useRealtimeTendersSync() {
-  const queryClient = useQueryClient();
-  const queryClientRef = useRef(queryClient);
+  const refetch = useCallback(async () => {
+    try {
+      if (initialLoadRef.current) {
+        setIsLoading(true);
+      }
+      setError(null);
+      const items = await fetchTenders();
+      setData(items);
+      return items;
+    } catch (err) {
+      const nextError = err instanceof Error ? err : new Error('Не удалось загрузить тендеры.');
+      setError(nextError);
+      return null;
+    } finally {
+      initialLoadRef.current = false;
+      setIsLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    queryClientRef.current = queryClient;
-  }, [queryClient]);
+    refetch();
+  }, [refetch]);
+
+  return {
+    data,
+    isLoading,
+    isError: Boolean(error),
+    error,
+    refetch,
+  };
+}
+
+export function useRealtimeTendersSync(onChange?: () => void) {
+  const onChangeRef = useRef(onChange);
+
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
 
   useEffect(() => {
     const unsubscribe = appwriteClient.subscribe(getTenderRealtimeChannel(), () => {
-      queryClientRef.current.invalidateQueries({ queryKey: tendersQueryKey });
+      onChangeRef.current?.();
     });
 
     return () => {
