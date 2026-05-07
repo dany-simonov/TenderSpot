@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { appwriteClient } from '@/lib/appwrite';
 import {
@@ -21,16 +21,21 @@ export function useTendersQuery() {
 
 export function useRealtimeTendersSync() {
   const queryClient = useQueryClient();
+  const queryClientRef = useRef(queryClient);
+
+  useEffect(() => {
+    queryClientRef.current = queryClient;
+  }, [queryClient]);
 
   useEffect(() => {
     const unsubscribe = appwriteClient.subscribe(getTenderRealtimeChannel(), () => {
-      queryClient.invalidateQueries({ queryKey: tendersQueryKey });
+      queryClientRef.current.invalidateQueries({ queryKey: tendersQueryKey });
     });
 
     return () => {
       unsubscribe();
     };
-  }, [queryClient]);
+  }, []);
 }
 
 export function useUpdateTenderStatusMutation() {
