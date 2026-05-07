@@ -1,12 +1,10 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
 import { Tender, TenderStatus, SortField, SortState } from '@/types/tender';
 import {
   useRealtimeTendersSync,
   useTendersQuery,
   useUpdateTenderNotesMutation,
   useUpdateTenderStatusMutation,
-  useUpdateTenderViewedMutation,
 } from '@/hooks/useTenders';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuth } from '@/auth/AuthContext';
@@ -14,29 +12,6 @@ import Header from '@/components/layout/Header';
 import FilterBar from '@/components/features/FilterBar';
 import TenderTable from '@/components/features/TenderTable';
 import TenderDrawer from '@/components/features/TenderDrawer';
-import { toast } from 'sonner';
-import { runParser } from '@/services/parser';
-import { fetchTenders } from '@/services/tenders';
-import { tendersQueryKey } from '@/hooks/useTenders';
-
-function parseDeadlineForSort(value: string): number | null {
-  if (!value) {
-    return null;
-  }
-
-  if (/^\d{4}-\d{2}-\d{2}/.test(value)) {
-    const iso = new Date(value);
-    return Number.isNaN(iso.getTime()) ? null : iso.getTime();
-  }
-
-  const dmY = value.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
-  if (dmY) {
-    const parsed = new Date(`${dmY[3]}-${dmY[2]}-${dmY[1]}T00:00:00`);
-    return Number.isNaN(parsed.getTime()) ? null : parsed.getTime();
-  }
-
-  return null;
-}
 
 const Index = () => {
   const [theme, toggleTheme] = useTheme();
@@ -47,39 +22,27 @@ const Index = () => {
     isLoading,
     isError,
     error,
+    refetch,
+    dataUpdatedAt,
   } = useTendersQuery();
   const updateStatusMutation = useUpdateTenderStatusMutation();
   const updateNotesMutation = useUpdateTenderNotesMutation();
-  const updateViewedMutation = useUpdateTenderViewedMutation();
-  const queryClient = useQueryClient();
 
   useRealtimeTendersSync();
 
+  const [lastSync, setLastSync] = useState(new Date().toISOString());
+
+  useEffect(() => {
+    if (dataUpdatedAt > 0) {
+      setLastSync(new Date(dataUpdatedAt).toISOString());
+    }
+  }, [dataUpdatedAt]);
+
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<TenderStatus | 'all'>('all');
-  const [hideNoDeadline, setHideNoDeadline] = useState(false);
-  const [onlyNew, setOnlyNew] = useState(false);
+  const [sourceFilter, setSourceFilter] = useState<string>('all');
   const [sort, setSort] = useState<SortState>({ field: 'deadline', dir: 'asc' });
   const [selectedTenderId, setSelectedTenderId] = useState<string | null>(null);
-  const [parserLaunching, setParserLaunching] = useState(false);
-  const [parserLocked, setParserLocked] = useState(false);
-  const [parserStartCount, setParserStartCount] = useState<number | null>(null);
-
-  const lastSync = useMemo(() => {
-    const latestCreatedAt = tenders.reduce<string>((latest, tender) => {
-      if (!tender.createdAt) {
-        return latest;
-      }
-      if (!latest) {
-        return tender.createdAt;
-      }
-      return new Date(tender.createdAt).getTime() > new Date(latest).getTime()
-        ? tender.createdAt
-        : latest;
-    }, '');
-
-    return latestCreatedAt;
-  }, [tenders]);
 
   const selectedTender = useMemo(
     () => (selectedTenderId ? tenders.find((item) => item.id === selectedTenderId) ?? null : null),
@@ -116,38 +79,13 @@ const Index = () => {
     [tenders, updateNotesMutation]
   );
 
-  const handleMarkViewed = useCallback(
-    (tender: Tender) => {
-      if (!tender.documentId || tender.isViewed === true) {
-        return;
-      }
-
-      updateViewedMutation.mutate({
-        documentId: tender.documentId,
-        isViewed: true,
-      });
-    },
-    [updateViewedMutation]
-  );
-
   const handleSort = useCallback(
     (field: SortField) => {
-      setSort((prev) => {
-        if (field === 'deadline') {
-          if (prev.field !== 'deadline' || prev.dir === null) {
-            return { field: 'deadline', dir: 'asc' };
-          }
-          if (prev.dir === 'asc') {
-            return { field: 'deadline', dir: 'desc' };
-          }
-          return { field: null, dir: null };
-        }
-
-        if (prev.field === field && prev.dir !== null) {
-          return { field, dir: prev.dir === 'asc' ? 'desc' : 'asc' };
-        }
-        return { field, dir: 'asc' };
-      });
+      setSort((prev) =>
+        prev.field === field
+          ? { field, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
+          : { field, dir: 'asc' }
+      );
     },
     []
   );
@@ -160,101 +98,21 @@ const Index = () => {
     setSelectedTenderId(null);
   }, []);
 
-  const handleRunParser = useCallback(async () => {
-    if (parserLaunching || parserLocked) {
-      return;
-    }
-
-    setParserLaunching(true);
-    try {
-      await runParser();
-      setParserLocked(true);
-      setParserStartCount(tenders.length);
-      toast.success('Парсер запущен. Обновляем список...');
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Ошибка запуска парсера.');
-    } finally {
-      setParserLaunching(false);
-    }
-  }, [parserLaunching, parserLocked, tenders.length]);
-
-  useEffect(() => {
-    if (!parserLocked) {
-      return;
-    }
-
-    const baselineCount = parserStartCount ?? tenders.length;
-    let active = true;
-
-    const interval = setInterval(async () => {
-      try {
-        const latest = await fetchTenders();
-        if (!active) {
-          return;
-        }
-        if (latest.length !== baselineCount) {
-          setParserLocked(false);
-          setParserStartCount(null);
-          queryClient.invalidateQueries({ queryKey: tendersQueryKey });
-        }
-      } catch {
-        // Ignore polling errors to keep UI responsive.
-      }
-    }, 12_000);
-
-    return () => {
-      active = false;
-      clearInterval(interval);
-    };
-  }, [parserLocked, parserStartCount, tenders.length, queryClient]);
-
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return tenders.filter((t) => {
       if (statusFilter !== 'all' && t.status !== statusFilter) return false;
-      if (hideNoDeadline && !t.deadline) return false;
-      if (onlyNew && t.isViewed === true) return false;
-      if (q) {
-        const searchHaystack = [
-          t.title,
-          t.customer,
-          t.description,
-          t.inn,
-          t.id,
-          String(t.price),
-          t.regionCode,
-        ]
-          .join(' ')
-          .toLowerCase();
-        if (!searchHaystack.includes(q)) {
-          return false;
-        }
-      }
+      if (sourceFilter !== 'all' && t.source !== sourceFilter) return false;
+      if (q && !t.title.toLowerCase().includes(q) && !t.customer.toLowerCase().includes(q))
+        return false;
       return true;
     });
-  }, [tenders, search, statusFilter, hideNoDeadline, onlyNew]);
+  }, [tenders, search, statusFilter, sourceFilter]);
 
   const sorted = useMemo(() => {
-    if (!sort.field || !sort.dir) {
-      return filtered;
-    }
-
     return [...filtered].sort((a, b) => {
       let cmp = 0;
-      if (sort.field === 'deadline') {
-        const aTime = parseDeadlineForSort(a.deadline);
-        const bTime = parseDeadlineForSort(b.deadline);
-
-        if (aTime === null && bTime === null) {
-          cmp = 0;
-        } else if (aTime === null) {
-          cmp = 1;
-        } else if (bTime === null) {
-          cmp = -1;
-        } else {
-          cmp = aTime - bTime;
-        }
-      }
+      if (sort.field === 'deadline') cmp = a.deadline.localeCompare(b.deadline);
       else if (sort.field === 'price') cmp = a.price - b.price;
       else if (sort.field === 'published') cmp = a.published.localeCompare(b.published);
       else if (sort.field === 'title') cmp = a.title.localeCompare(b.title, 'ru');
@@ -269,24 +127,9 @@ const Index = () => {
         ? filtered
         : tenders.filter((t) => {
             const q = search.trim().toLowerCase();
-            if (hideNoDeadline && !t.deadline) return false;
-          if (onlyNew && t.isViewed === true) return false;
-            if (q) {
-              const searchHaystack = [
-                t.title,
-                t.customer,
-                t.description,
-                t.inn,
-                t.id,
-                String(t.price),
-                t.regionCode,
-              ]
-                .join(' ')
-                .toLowerCase();
-              if (!searchHaystack.includes(q)) {
-                return false;
-              }
-            }
+            if (sourceFilter !== 'all' && t.source !== sourceFilter) return false;
+            if (q && !t.title.toLowerCase().includes(q) && !t.customer.toLowerCase().includes(q))
+              return false;
             return true;
           });
     return {
@@ -296,7 +139,12 @@ const Index = () => {
       submitted: base.filter((t) => t.status === 'submitted').length,
       rejected: base.filter((t) => t.status === 'rejected').length,
     };
-  }, [tenders, filtered, statusFilter, hideNoDeadline, onlyNew, search]);
+  }, [tenders, filtered, statusFilter, sourceFilter, search]);
+
+  const handleRefresh = useCallback(async () => {
+    await refetch();
+    setLastSync(new Date().toISOString());
+  }, [refetch]);
 
   const handleLogout = useCallback(async () => {
     await logout();
@@ -306,23 +154,28 @@ const Index = () => {
     <div className="min-h-screen transition-colors" style={{ backgroundColor: 'var(--ts-bg)' }}>
       <Header
         lastSync={lastSync}
-        parserRunPending={parserLaunching}
-        parserRunLocked={parserLocked}
-        onRunParser={handleRunParser}
+        onRefresh={handleRefresh}
         theme={theme}
         onToggleTheme={toggleTheme}
-        onLogout={handleLogout}
       />
+
+      <div className="px-4 sm:px-6 py-2 flex justify-end">
+        <button
+          onClick={handleLogout}
+          className="text-xs px-3 py-1.5 rounded btn-outline"
+          style={{ borderRadius: '4px' }}
+        >
+          Выйти
+        </button>
+      </div>
 
       <FilterBar
         search={search}
         onSearchChange={setSearch}
         statusFilter={statusFilter}
         onStatusFilterChange={setStatusFilter}
-        hideNoDeadline={hideNoDeadline}
-        onHideNoDeadlineChange={setHideNoDeadline}
-        onlyNew={onlyNew}
-        onOnlyNewChange={setOnlyNew}
+        sourceFilter={sourceFilter}
+        onSourceFilterChange={setSourceFilter}
         counts={counts}
       />
 
@@ -343,7 +196,6 @@ const Index = () => {
               sort={sort}
               onSort={handleSort}
               onRowClick={handleRowClick}
-              onMarkViewed={handleMarkViewed}
               onStatusChange={handleStatusChange}
             />
           )}

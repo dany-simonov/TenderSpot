@@ -6,12 +6,9 @@ import { Tender, TenderStatus } from '@/types/tender';
 function parseTenderDocument(document: Models.Document): Tender {
   return {
     documentId: document.$id,
-    createdAt: String(document.$createdAt || ''),
-    updatedAt: String(document.$updatedAt || ''),
-    id: String(document.id || document.externalId || document.regNumber || document.$id),
+    id: String(document.externalId || document.regNumber || document.$id),
     title: String(document.title || ''),
     customer: String(document.customer || ''),
-    regionCode: String(document.regionCode || ''),
     inn: String(document.inn || ''),
     price: Number(document.price || 0),
     published: String(document.published || '').slice(0, 10),
@@ -22,7 +19,6 @@ function parseTenderDocument(document: Models.Document): Tender {
     keywords: Array.isArray(document.keywords) ? document.keywords.map(String) : [],
     status: (document.status || 'new') as TenderStatus,
     notes: String(document.notes || ''),
-    isViewed: document.isViewed === true,
   };
 }
 

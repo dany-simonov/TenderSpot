@@ -1,47 +1,35 @@
-import { Sun, Moon } from 'lucide-react';
+import { RefreshCw, Sun, Moon } from 'lucide-react';
 import { Theme } from '@/hooks/useTheme';
 import BlueRhombusLogo from '@/components/branding/BlueRhombusLogo';
 
 interface HeaderProps {
   lastSync: string;
-  parserRunPending?: boolean;
-  parserRunLocked?: boolean;
-  onRunParser?: () => void;
+  onRefresh: () => void;
   theme: Theme;
   onToggleTheme: () => void;
-  onLogout: () => void;
 }
 
 // Format ISO timestamp to Russian locale: DD.MM.YYYY, HH:MM
 function formatSyncTime(iso: string): string {
-  const d = new Date(iso);
-  if (!iso || Number.isNaN(d.getTime())) {
+  try {
+    const d = new Date(iso);
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    const hours = String(d.getHours()).padStart(2, '0');
+    const minutes = String(d.getMinutes()).padStart(2, '0');
+    return `${day}.${month}.${year}, ${hours}:${minutes}`;
+  } catch {
     return '—';
   }
-
-  const day = String(d.getDate()).padStart(2, '0');
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const year = d.getFullYear();
-  const hours = String(d.getHours()).padStart(2, '0');
-  const minutes = String(d.getMinutes()).padStart(2, '0');
-  return `${day}.${month}.${year}, ${hours}:${minutes}`;
 }
 
-const Header = ({
-  lastSync,
-  parserRunPending,
-  parserRunLocked,
-  onRunParser,
-  theme,
-  onToggleTheme,
-  onLogout,
-}: HeaderProps) => {
+const Header = ({ lastSync, onRefresh, theme, onToggleTheme }: HeaderProps) => {
   const isDark = theme === 'dark';
-  const runDisabled = !onRunParser || parserRunPending || parserRunLocked;
 
   return (
     <header
-      className="sticky top-0 z-40 flex items-center justify-between px-4 sm:px-6 h-12 pr-24 sm:pr-28 transition-colors"
+      className="sticky top-0 z-40 flex items-center justify-between px-4 sm:px-6 h-12 transition-colors"
       style={{
         backgroundColor: 'var(--ts-surface)',
         borderBottom: '1px solid var(--ts-border)',
@@ -50,23 +38,13 @@ const Header = ({
       <BlueRhombusLogo />
 
       {/* Right side: sync info + buttons */}
-      <div className="flex items-center gap-2 mr-2 sm:mr-4">
+      <div className="flex items-center gap-2">
         <span
           className="hidden sm:inline text-xs"
           style={{ color: 'var(--ts-text-secondary)' }}
         >
           Последнее обновление: {formatSyncTime(lastSync)}
         </span>
-
-        <button
-          onClick={onRunParser}
-          disabled={runDisabled}
-          className="flex items-center justify-center h-8 px-3 rounded btn-outline text-xs"
-          style={{ borderRadius: '4px', opacity: runDisabled ? 0.6 : 1 }}
-          title="Запустить парсер (доступно 1 раз в день)"
-        >
-          {parserRunPending ? 'Запуск...' : parserRunLocked ? 'Запущено...' : 'Обновить'}
-        </button>
 
         {/* Theme toggle */}
         <button
@@ -83,15 +61,17 @@ const Header = ({
           )}
         </button>
 
+        {/* Refresh */}
+        <button
+          onClick={onRefresh}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium btn-outline"
+          style={{ borderRadius: '4px' }}
+          title="Обновить данные"
+        >
+          <RefreshCw size={13} />
+          <span>Обновить</span>
+        </button>
       </div>
-
-      <button
-        onClick={onLogout}
-        className="absolute right-4 sm:right-6 top-1/2 -translate-y-1/2 text-xs px-3 py-1.5 rounded btn-outline"
-        style={{ borderRadius: '4px' }}
-      >
-        Выйти
-      </button>
     </header>
   );
 };

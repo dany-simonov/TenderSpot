@@ -8,10 +8,7 @@
     "dev": "tsx src/index.ts --once",
     "run": "tsx src/index.ts --once",
     "schedule": "tsx src/index.ts",
-    "server": "tsx src/server.ts",
-    "dev:server": "tsx src/server.ts",
     "clear": "tsx src/utils/clear-db.ts",
-    "db:ensure-isviewed": "tsx src/utils/ensure-isviewed-attribute.ts",
     "debug:discover": "tsx src/utils/debug-5-tenders.ts",
     "build": "tsc -p tsconfig.json"
   },
