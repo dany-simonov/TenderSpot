@@ -51,11 +51,23 @@ export default async ({ req, res, log, error }) => {
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    error(message);
+    const stack = err instanceof Error ? err.stack : undefined;
+    const details = {
+      message,
+      code: err?.code,
+      stdout: err?.stdout,
+      stderr: err?.stderr,
+    };
+
+    if (stack) {
+      error(stack);
+    }
+    error(JSON.stringify(details));
 
     return res.json({
       success: false,
       error: message,
+      details,
     }, 500);
   }
 };
