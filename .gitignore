@@ -63,6 +63,10 @@ services/parser/.env.*
 services/parser/.cache
 services/parser/dist
 
+# Allow Appwrite function dist output
+!functions/parser/dist
+!functions/parser/dist/**
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
