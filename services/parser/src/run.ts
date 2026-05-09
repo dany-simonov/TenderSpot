@@ -22,14 +22,8 @@ const targetKeywords = [
 ];
 const targetRegionCodes = ['77', '50', '69'];
 
-// Function to use Appwrite's log context
-function parserLog(appwriteLog: (message: string) => void, message: string): void {
-  const timestamp = new Date().toISOString();
-  appwriteLog(`[parser][${timestamp}] ${message}`);
-}
-
-async function executeSync(appwriteLog: (message: string) => void): Promise<{ extracted: number; loaded: number } | null> {
-  parserLog(appwriteLog, 'run started');
+async function runParser(log: (message: string) => void): Promise<{ extracted: number; loaded: number }> {
+  log('run started');
 
   const loader = new AppwriteTenderLoader({
     endpoint: parserEnv.APPWRITE_ENDPOINT,
@@ -46,31 +40,30 @@ async function executeSync(appwriteLog: (message: string) => void): Promise<{ ex
       gosuslugiToken: parserEnv.EIS_GOSUSLUGI_TOKEN,
       keywords: targetKeywords,
       regionCodes: targetRegionCodes,
-      log: (message: string) => parserLog(appwriteLog, message), // Pass Appwrite's log to pipeline
+      log,
     },
     loader,
   });
 
-  parserLog(appwriteLog, `ETL completed. Extracted: ${result.extracted}, loaded: ${result.loaded}`);
+  log(`ETL completed. Extracted: ${result.extracted}, loaded: ${result.loaded}`);
 
-  return result ?? null;
+  return result;
 }
 
-// Appwrite REQUIRES a default export with this specific signature
-export default async ({ req, res, log, error }: any) => {
+// 1. Declare the main handler
+const main = async ({ req, res, log, error }: any) => {
     try {
-        log("Starting tender parser...");
+        log("Execution started...");
+        const data = await runParser(log); // Call logic inside the handler
+        log("Execution successful.");
 
-        // Await your parser logic here
-        const result = await executeSync(log);
-
-        log("Parsing successfully completed.");
-        // Appwrite REQUIRES returning a response
-        return res.json({ success: true, data: result });
+        return res.json({ success: true, data });
     } catch (err: any) {
-        error(`Parser crashed: ${err.message}`);
-        if (err.stack) error(err.stack);
-
+        error(`Critical failure: ${err.message}`);
         return res.json({ success: false, error: err.message }, 500);
     }
 };
+
+// 2. EXPORT IT explicitly. Do NOT execute main() at the top level!
+export default main;
+module.exports = main; // Fallback for strict CJS Node environments

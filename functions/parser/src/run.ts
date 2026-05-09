@@ -22,13 +22,8 @@ const targetKeywords = [
 ];
 const targetRegionCodes = ['77', '50', '69'];
 
-export function parserLog(message: string): void {
-  const timestamp = new Date().toISOString();
-  console.log(`[parser][${timestamp}] ${message}`);
-}
-
-export async function executeSync(): Promise<{ extracted: number; loaded: number } | null> {
-  parserLog('run started');
+async function runParser(log: (message: string) => void): Promise<{ extracted: number; loaded: number }> {
+  log('run started');
 
   const loader = new AppwriteTenderLoader({
     endpoint: parserEnv.APPWRITE_ENDPOINT,
@@ -45,12 +40,30 @@ export async function executeSync(): Promise<{ extracted: number; loaded: number
       gosuslugiToken: parserEnv.EIS_GOSUSLUGI_TOKEN,
       keywords: targetKeywords,
       regionCodes: targetRegionCodes,
-      log: parserLog,
+      log,
     },
     loader,
   });
 
-  parserLog(`ETL completed. Extracted: ${result.extracted}, loaded: ${result.loaded}`);
+  log(`ETL completed. Extracted: ${result.extracted}, loaded: ${result.loaded}`);
 
-  return result ?? null;
+  return result;
 }
+
+// 1. Declare the main handler
+const main = async ({ req, res, log, error }: any) => {
+    try {
+        log("Execution started...");
+        const data = await runParser(log); // Call logic inside the handler
+        log("Execution successful.");
+
+        return res.json({ success: true, data });
+    } catch (err: any) {
+        error(`Critical failure: ${err.message}`);
+        return res.json({ success: false, error: err.message }, 500);
+    }
+};
+
+// 2. EXPORT IT explicitly. Do NOT execute main() at the top level!
+export default main;
+module.exports = main; // Fallback for strict CJS Node environments

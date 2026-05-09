@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "esbuild src/run.ts --bundle --platform=node --target=node18 --format=esm --packages=external --outfile=dist/index.js"
+    "build": "esbuild src/run.ts --bundle --platform=node --target=node18 --format=cjs --packages=external --outfile=dist/index.js"
   },
   "dependencies": {
     "basic-ftp": "^5.0.5",

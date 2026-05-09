@@ -1,35 +1,72 @@
+"use strict";
+var __create = Object.create;
+var __defProp = Object.defineProperty;
+var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+var __getOwnPropNames = Object.getOwnPropertyNames;
+var __getProtoOf = Object.getPrototypeOf;
+var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __export = (target, all) => {
+  for (var name in all)
+    __defProp(target, name, { get: all[name], enumerable: true });
+};
+var __copyProps = (to, from, except, desc) => {
+  if (from && typeof from === "object" || typeof from === "function") {
+    for (let key of __getOwnPropNames(from))
+      if (!__hasOwnProp.call(to, key) && key !== except)
+        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+  }
+  return to;
+};
+var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
+  // If the importer is in node compatibility mode or this is not an ESM
+  // file that has been converted to a CommonJS file using a Babel-
+  // compatible transform (i.e. "__esModule" has not been set), then set
+  // "default" to the CommonJS "module.exports" for node compatibility.
+  isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
+  mod
+));
+var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
+
+// src/run.ts
+var run_exports = {};
+__export(run_exports, {
+  default: () => run_default
+});
+module.exports = __toCommonJS(run_exports);
+
 // src/config/env.ts
-import dotenv from "dotenv";
-import { existsSync } from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-import { z } from "zod";
-var __filename = fileURLToPath(import.meta.url);
-var __dirname = path.dirname(__filename);
+var import_dotenv = __toESM(require("dotenv"), 1);
+var import_node_fs = require("node:fs");
+var import_node_path = __toESM(require("node:path"), 1);
+var import_node_url = require("node:url");
+var import_zod = require("zod");
+var import_meta = {};
+var __filename = (0, import_node_url.fileURLToPath)(import_meta.url);
+var __dirname = import_node_path.default.dirname(__filename);
 var envCandidates = [
-  path.resolve(process.cwd(), ".env"),
-  path.resolve(__dirname, "../../../../.env")
+  import_node_path.default.resolve(process.cwd(), ".env"),
+  import_node_path.default.resolve(__dirname, "../../../../.env")
 ];
 for (const envPath of envCandidates) {
-  if (existsSync(envPath)) {
-    dotenv.config({ path: envPath, override: false });
+  if ((0, import_node_fs.existsSync)(envPath)) {
+    import_dotenv.default.config({ path: envPath, override: false });
   }
 }
-var schema = z.object({
-  APPWRITE_ENDPOINT: z.string().url(),
-  APPWRITE_PROJECT_ID: z.string().min(1),
-  APPWRITE_DATABASE_ID: z.string().min(1),
-  APPWRITE_TENDERS_COLLECTION_ID: z.string().min(1),
-  APPWRITE_PARSER_STATE_COLLECTION_ID: z.string().optional(),
-  PARSER_APPWRITE_API_KEY: z.string().min(1),
-  PARSER_SYNC_SECRET: z.string().min(1),
-  EIS_EXTRACT_METHOD: z.enum(["ftp", "api", "human"]).default("human"),
-  EIS_GOSUSLUGI_TOKEN: z.string().optional(),
-  EIS_HUMAN_SESSION_MIN_SECONDS: z.coerce.number().int().positive().default(1200),
-  EIS_HUMAN_SESSION_MAX_SECONDS: z.coerce.number().int().positive().default(3600),
-  EIS_HUMAN_MIN_STEP_DELAY_MS: z.coerce.number().int().positive().default(2500),
-  EIS_HUMAN_MAX_STEP_DELAY_MS: z.coerce.number().int().positive().default(15e3),
-  PARSER_CRON: z.string().default("17 3 */2 * *")
+var schema = import_zod.z.object({
+  APPWRITE_ENDPOINT: import_zod.z.string().url(),
+  APPWRITE_PROJECT_ID: import_zod.z.string().min(1),
+  APPWRITE_DATABASE_ID: import_zod.z.string().min(1),
+  APPWRITE_TENDERS_COLLECTION_ID: import_zod.z.string().min(1),
+  APPWRITE_PARSER_STATE_COLLECTION_ID: import_zod.z.string().optional(),
+  PARSER_APPWRITE_API_KEY: import_zod.z.string().min(1),
+  PARSER_SYNC_SECRET: import_zod.z.string().min(1),
+  EIS_EXTRACT_METHOD: import_zod.z.enum(["ftp", "api", "human"]).default("human"),
+  EIS_GOSUSLUGI_TOKEN: import_zod.z.string().optional(),
+  EIS_HUMAN_SESSION_MIN_SECONDS: import_zod.z.coerce.number().int().positive().default(1200),
+  EIS_HUMAN_SESSION_MAX_SECONDS: import_zod.z.coerce.number().int().positive().default(3600),
+  EIS_HUMAN_MIN_STEP_DELAY_MS: import_zod.z.coerce.number().int().positive().default(2500),
+  EIS_HUMAN_MAX_STEP_DELAY_MS: import_zod.z.coerce.number().int().positive().default(15e3),
+  PARSER_CRON: import_zod.z.string().default("17 3 */2 * *")
 });
 var normalizedEnv = {
   ...process.env,
@@ -102,7 +139,7 @@ async function runEtlPipeline(args) {
 }
 
 // src/loaders/parser-state-store.ts
-import { Client, Databases, ID, Query } from "node-appwrite";
+var import_node_appwrite = require("node-appwrite");
 var SESSION_KEY = "eis_human_session";
 var LAST_ERROR_KEY = "eis_human_last_error";
 var LAST_RUN_KEY = "parser_last_run";
@@ -111,8 +148,8 @@ var ParserStateStore = class {
   databaseId;
   collectionId;
   constructor(config) {
-    const client = new Client().setEndpoint(config.endpoint).setProject(config.projectId).setKey(config.apiKey);
-    this.databases = new Databases(client);
+    const client = new import_node_appwrite.Client().setEndpoint(config.endpoint).setProject(config.projectId).setKey(config.apiKey);
+    this.databases = new import_node_appwrite.Databases(client);
     this.databaseId = config.databaseId;
     this.collectionId = config.collectionId;
   }
@@ -167,8 +204,8 @@ var ParserStateStore = class {
     }
     try {
       const response = await this.databases.listDocuments(this.databaseId, this.collectionId, [
-        Query.equal("key", key),
-        Query.limit(1)
+        import_node_appwrite.Query.equal("key", key),
+        import_node_appwrite.Query.limit(1)
       ]);
       if (response.total === 0) {
         return null;
@@ -192,8 +229,8 @@ var ParserStateStore = class {
     }
     try {
       const existing = await this.databases.listDocuments(this.databaseId, this.collectionId, [
-        Query.equal("key", key),
-        Query.limit(1)
+        import_node_appwrite.Query.equal("key", key),
+        import_node_appwrite.Query.limit(1)
       ]);
       if (existing.total > 0) {
         await this.databases.updateDocument(
@@ -207,7 +244,7 @@ var ParserStateStore = class {
         );
         return;
       }
-      await this.databases.createDocument(this.databaseId, this.collectionId, ID.unique(), {
+      await this.databases.createDocument(this.databaseId, this.collectionId, import_node_appwrite.ID.unique(), {
         key,
         payload: JSON.stringify(payload)
       });
@@ -217,7 +254,7 @@ var ParserStateStore = class {
 };
 
 // src/adapters/eis/eis.extract.ts
-import { load } from "cheerio";
+var import_cheerio = require("cheerio");
 var DAYS_BACK = 120;
 var MIN_PRICE = 5e5;
 var MAX_TENDERS = 500;
@@ -579,7 +616,7 @@ function parseDateFromText(input) {
   return parsed ? parsed.toISOString() : (/* @__PURE__ */ new Date()).toISOString();
 }
 function extractDeadlineFromBlock(block) {
-  const $ = load(block);
+  const $ = (0, import_cheerio.load)(block);
   const fullText = normalizeWhitespace($.root().text());
   const deadlineMatch = fullText.match(/Окончание\s+подачи\s+заяв(?:ок|ки)[\s\S]*?(\d{2}\.\d{2}\.\d{4})/i);
   if (!deadlineMatch?.[1]) {
@@ -614,7 +651,7 @@ function findPriceLikeText(candidates) {
   return fallback;
 }
 function extractRawPriceFragment(input) {
-  const $ = load(input);
+  const $ = (0, import_cheerio.load)(input);
   const formScope = $(".registry-entry__form").first();
   const scope = formScope.length ? formScope : $("body");
   const byPriceBlockClass = scope.find(".price-block__value").map((_i, el) => $(el).text()).get();
@@ -699,7 +736,7 @@ function toAbsoluteEisUrl(href) {
   }
 }
 function extractBlocks(html) {
-  const $ = load(html);
+  const $ = (0, import_cheerio.load)(html);
   const cardSet = /* @__PURE__ */ new Set();
   $(".search-registry-entry-block").each((_i, el) => {
     const card = $.html(el);
@@ -757,7 +794,7 @@ function extractExternalIdFast(block) {
   return block.match(/\b\d{11,19}\b/)?.[0] ?? "";
 }
 function buildSurfaceTenderFromBlock(block) {
-  const $ = load(block);
+  const $ = (0, import_cheerio.load)(block);
   const hrefCandidates = $("a[href]").map((_i, el) => String($(el).attr("href") || "").trim()).get().filter(Boolean);
   const preferredHref = hrefCandidates.find((href) => /notice223\/common-info\.html/i.test(href)) || hrefCandidates.find((href) => /regNumber=\d{8,}/i.test(href)) || hrefCandidates[0] || "";
   const externalId = parseRegNumberFromHref(preferredHref) || hrefCandidates.map((href) => parseRegNumberFromHref(href)).find(Boolean) || block.match(/\b\d{11,19}\b/)?.[0] || "";
@@ -820,7 +857,7 @@ function extractInnFromText(fullText) {
   return directMatch ?? "";
 }
 function extractFieldFromHtml(html, labelPattern) {
-  const $ = load(html);
+  const $ = (0, import_cheerio.load)(html);
   const elements = $("td, th, div, span, p");
   for (const element of elements.toArray()) {
     const rawText = normalizeWhitespace($(element).text());
@@ -1323,14 +1360,14 @@ var EisSourceAdapter = class {
 };
 
 // src/loaders/appwrite-loader.ts
-import { AppwriteException, Client as Client2, Databases as Databases2, ID as ID2, Query as Query2 } from "node-appwrite";
+var import_node_appwrite2 = require("node-appwrite");
 var AppwriteTenderLoader = class {
   databases;
   databaseId;
   collectionId;
   constructor(config) {
-    const client = new Client2().setEndpoint(config.endpoint).setProject(config.projectId).setKey(config.apiKey);
-    this.databases = new Databases2(client);
+    const client = new import_node_appwrite2.Client().setEndpoint(config.endpoint).setProject(config.projectId).setKey(config.apiKey);
+    this.databases = new import_node_appwrite2.Databases(client);
     this.databaseId = config.databaseId;
     this.collectionId = config.collectionId;
   }
@@ -1342,9 +1379,9 @@ var AppwriteTenderLoader = class {
     const cutoffIso = today.toISOString();
     while (true) {
       const page = await this.databases.listDocuments(this.databaseId, this.collectionId, [
-        Query2.lessThan("deadline", cutoffIso),
-        Query2.limit(PAGE_LIMIT),
-        Query2.orderAsc("$id")
+        import_node_appwrite2.Query.lessThan("deadline", cutoffIso),
+        import_node_appwrite2.Query.limit(PAGE_LIMIT),
+        import_node_appwrite2.Query.orderAsc("$id")
       ]);
       if (page.documents.length === 0) {
         break;
@@ -1396,11 +1433,11 @@ var AppwriteTenderLoader = class {
       await this.databases.createDocument(
         this.databaseId,
         this.collectionId,
-        ID2.custom(documentId),
+        import_node_appwrite2.ID.custom(documentId),
         createPayload
       );
     } catch (error) {
-      const code = error instanceof AppwriteException ? error.code : typeof error?.code === "number" ? error.code : void 0;
+      const code = error instanceof import_node_appwrite2.AppwriteException ? error.code : typeof error?.code === "number" ? error.code : void 0;
       if (code !== 409) {
         throw error;
       }
@@ -1433,12 +1470,8 @@ var targetKeywords = [
   "\u0432\u043E\u0441\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D\u0438\u0435 \u043A\u0440\u043E\u0432\u043B\u0438"
 ];
 var targetRegionCodes = ["77", "50", "69"];
-function parserLog(appwriteLog, message) {
-  const timestamp = (/* @__PURE__ */ new Date()).toISOString();
-  appwriteLog(`[parser][${timestamp}] ${message}`);
-}
-async function executeSync(appwriteLog) {
-  parserLog(appwriteLog, "run started");
+async function runParser(log) {
+  log("run started");
   const loader = new AppwriteTenderLoader({
     endpoint: parserEnv.APPWRITE_ENDPOINT,
     projectId: parserEnv.APPWRITE_PROJECT_ID,
@@ -1453,26 +1486,23 @@ async function executeSync(appwriteLog) {
       gosuslugiToken: parserEnv.EIS_GOSUSLUGI_TOKEN,
       keywords: targetKeywords,
       regionCodes: targetRegionCodes,
-      log: (message) => parserLog(appwriteLog, message)
-      // Pass Appwrite's log to pipeline
+      log
     },
     loader
   });
-  parserLog(appwriteLog, `ETL completed. Extracted: ${result.extracted}, loaded: ${result.loaded}`);
-  return result ?? null;
+  log(`ETL completed. Extracted: ${result.extracted}, loaded: ${result.loaded}`);
+  return result;
 }
-var run_default = async ({ req, res, log, error }) => {
+var main = async ({ req, res, log, error }) => {
   try {
-    log("Starting tender parser...");
-    const result = await executeSync(log);
-    log("Parsing successfully completed.");
-    return res.json({ success: true, data: result });
+    log("Execution started...");
+    const data = await runParser(log);
+    log("Execution successful.");
+    return res.json({ success: true, data });
   } catch (err) {
-    error(`Parser crashed: ${err.message}`);
-    if (err.stack) error(err.stack);
+    error(`Critical failure: ${err.message}`);
     return res.json({ success: false, error: err.message }, 500);
   }
 };
-export {
-  run_default as default
-};
+var run_default = main;
+module.exports = main;
