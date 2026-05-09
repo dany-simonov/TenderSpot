@@ -29,6 +29,7 @@
   "devDependencies": {
     "@types/node": "^24.6.0",
     "@types/sax": "^1.2.7",
+    "esbuild": "^0.23.0",
     "tsx": "^4.20.6",
     "typescript": "^5.9.3"
   }
