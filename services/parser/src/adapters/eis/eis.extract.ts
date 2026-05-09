@@ -369,18 +369,31 @@ export async function humanFetch(
     headers.set('Cookie', cookieHeader);
   }
 
-  const response = await fetch(url, {
+  const targetUrl = url;
+  const options = {
     method: 'GET',
     headers,
-  });
+  };
 
-  mergeCookies(session, extractSetCookies(response.headers));
+  try {
+    console.log(`[Network] Initiating request to: ${targetUrl}`);
+    const response = await fetch(targetUrl, options);
 
-  if (!response.ok) {
-    throw new Error(`[human] HTTP ${response.status} for ${url}`);
+    mergeCookies(session, extractSetCookies(response.headers));
+
+    if (!response.ok) {
+      throw new Error(`[human] HTTP ${response.status} for ${targetUrl}`);
+    }
+
+    return response.text();
+  } catch (err: any) {
+    let systemError = err.message;
+    if (err.cause) {
+        systemError = `Cause: ${err.cause.message || err.cause.code}`;
+    }
+    console.error(`[Network Failure] URL: ${targetUrl} | Error: ${systemError}`);
+    throw err;
   }
-
-  return response.text();
 }
 
 function parseDateFromText(input: string): string {
