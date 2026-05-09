@@ -38,11 +38,7 @@ module.exports = __toCommonJS(run_exports);
 var import_dotenv = __toESM(require("dotenv"), 1);
 var import_node_fs = require("node:fs");
 var import_node_path = __toESM(require("node:path"), 1);
-var import_node_url = require("node:url");
 var import_zod = require("zod");
-var import_meta = {};
-var __filename = (0, import_node_url.fileURLToPath)(import_meta.url);
-var __dirname = import_node_path.default.dirname(__filename);
 var envCandidates = [
   import_node_path.default.resolve(process.cwd(), ".env"),
   import_node_path.default.resolve(__dirname, "../../../../.env")
