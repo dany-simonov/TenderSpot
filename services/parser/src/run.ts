@@ -22,13 +22,14 @@ const targetKeywords = [
 ];
 const targetRegionCodes = ['77', '50', '69'];
 
-export function parserLog(message: string): void {
+// Function to use Appwrite's log context
+function parserLog(appwriteLog: (message: string) => void, message: string): void {
   const timestamp = new Date().toISOString();
-  console.log(`[parser][${timestamp}] ${message}`);
+  appwriteLog(`[parser][${timestamp}] ${message}`);
 }
 
-export async function executeSync(): Promise<{ extracted: number; loaded: number } | null> {
-  parserLog('run started');
+async function executeSync(appwriteLog: (message: string) => void): Promise<{ extracted: number; loaded: number } | null> {
+  parserLog(appwriteLog, 'run started');
 
   const loader = new AppwriteTenderLoader({
     endpoint: parserEnv.APPWRITE_ENDPOINT,
@@ -45,12 +46,31 @@ export async function executeSync(): Promise<{ extracted: number; loaded: number
       gosuslugiToken: parserEnv.EIS_GOSUSLUGI_TOKEN,
       keywords: targetKeywords,
       regionCodes: targetRegionCodes,
-      log: parserLog,
+      log: (message: string) => parserLog(appwriteLog, message), // Pass Appwrite's log to pipeline
     },
     loader,
   });
 
-  parserLog(`ETL completed. Extracted: ${result.extracted}, loaded: ${result.loaded}`);
+  parserLog(appwriteLog, `ETL completed. Extracted: ${result.extracted}, loaded: ${result.loaded}`);
 
   return result ?? null;
 }
+
+// Appwrite REQUIRES a default export with this specific signature
+export default async ({ req, res, log, error }: any) => {
+    try {
+        log("Starting tender parser...");
+
+        // Await your parser logic here
+        const result = await executeSync(log);
+
+        log("Parsing successfully completed.");
+        // Appwrite REQUIRES returning a response
+        return res.json({ success: true, data: result });
+    } catch (err: any) {
+        error(`Parser crashed: ${err.message}`);
+        if (err.stack) error(err.stack);
+
+        return res.json({ success: false, error: err.message }, 500);
+    }
+};

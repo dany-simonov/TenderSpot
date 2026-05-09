@@ -1433,12 +1433,12 @@ var targetKeywords = [
   "\u0432\u043E\u0441\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D\u0438\u0435 \u043A\u0440\u043E\u0432\u043B\u0438"
 ];
 var targetRegionCodes = ["77", "50", "69"];
-function parserLog(message) {
+function parserLog(appwriteLog, message) {
   const timestamp = (/* @__PURE__ */ new Date()).toISOString();
-  console.log(`[parser][${timestamp}] ${message}`);
+  appwriteLog(`[parser][${timestamp}] ${message}`);
 }
-async function executeSync() {
-  parserLog("run started");
+async function executeSync(appwriteLog) {
+  parserLog(appwriteLog, "run started");
   const loader = new AppwriteTenderLoader({
     endpoint: parserEnv.APPWRITE_ENDPOINT,
     projectId: parserEnv.APPWRITE_PROJECT_ID,
@@ -1453,14 +1453,26 @@ async function executeSync() {
       gosuslugiToken: parserEnv.EIS_GOSUSLUGI_TOKEN,
       keywords: targetKeywords,
       regionCodes: targetRegionCodes,
-      log: parserLog
+      log: (message) => parserLog(appwriteLog, message)
+      // Pass Appwrite's log to pipeline
     },
     loader
   });
-  parserLog(`ETL completed. Extracted: ${result.extracted}, loaded: ${result.loaded}`);
+  parserLog(appwriteLog, `ETL completed. Extracted: ${result.extracted}, loaded: ${result.loaded}`);
   return result ?? null;
 }
+var run_default = async ({ req, res, log, error }) => {
+  try {
+    log("Starting tender parser...");
+    const result = await executeSync(log);
+    log("Parsing successfully completed.");
+    return res.json({ success: true, data: result });
+  } catch (err) {
+    error(`Parser crashed: ${err.message}`);
+    if (err.stack) error(err.stack);
+    return res.json({ success: false, error: err.message }, 500);
+  }
+};
 export {
-  executeSync,
-  parserLog
+  run_default as default
 };
