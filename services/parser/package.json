@@ -3,16 +3,17 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "start": "tsx src/index.ts --once",
+    "start": "tsx src/index.ts --once & python scripts/job_report.py",
     "dev": "tsx src/index.ts --once",
-    "run": "tsx src/index.ts --once",
+    "run": "npm run start",
     "schedule": "tsx src/index.ts",
     "server": "tsx src/server.ts",
     "dev:server": "tsx src/server.ts",
     "clear": "tsx src/utils/clear-db.ts",
     "db:ensure-isviewed": "tsx src/utils/ensure-isviewed-attribute.ts",
     "debug:discover": "tsx src/utils/debug-5-tenders.ts",
-    "build": "esbuild src/run.ts --bundle --platform=node --target=node18 --format=cjs --packages=external --outfile=dist/index.js"
+    "build": "esbuild src/run.ts --bundle --platform=node --target=node18 --format=cjs --packages=external --outfile=dist/index.js",
+    "report:docx": "python scripts/job_report.py"
   },
   "dependencies": {
     "basic-ftp": "^5.0.5",

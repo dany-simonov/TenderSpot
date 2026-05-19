@@ -22,6 +22,11 @@ const targetKeywords = [
 ];
 const targetRegionCodes = ['77', '50', '69'];
 
+export function parserLog(message: string): void {
+  const timestamp = new Date().toISOString();
+  console.log(`[parser] ${timestamp} ${message}`);
+}
+
 async function runParser(log: (message: string) => void): Promise<{ extracted: number; loaded: number }> {
   log('run started');
 
@@ -50,6 +55,10 @@ async function runParser(log: (message: string) => void): Promise<{ extracted: n
   return result;
 }
 
+export async function executeSync(): Promise<{ extracted: number; loaded: number }> {
+  return runParser(parserLog);
+}
+
 // 1. Declare the main handler
 const main = async ({ req, res, log, error }: any) => {
     try {
@@ -65,5 +74,6 @@ const main = async ({ req, res, log, error }: any) => {
 };
 
 // 2. EXPORT IT explicitly. Do NOT execute main() at the top level!
+(main as { executeSync?: typeof executeSync; parserLog?: typeof parserLog }).executeSync = executeSync;
+(main as { executeSync?: typeof executeSync; parserLog?: typeof parserLog }).parserLog = parserLog;
 export default main;
-module.exports = main; // Fallback for strict CJS Node environments
